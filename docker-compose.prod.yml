@@ -1,0 +1,25 @@
+name: bh-pdd
+
+services:
+  pdd:
+    image: shadowkick/pdd:latest
+    container_name: pdd
+    restart: unless-stopped
+    labels:
+      # Watchtower обновляет контейнер сам, когда в Docker Hub появляется новый
+      # образ (установка: deploy/watchtower-compose.yml в репозитории Auth).
+      com.centurylinklabs.watchtower.enable: "true"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8798
+      # Поисковики не пускаем, пока пояснения к ответам не свои
+      # (ARCHITECTURE.md, «База билетов»). Включить: INDEXABLE: "1".
+      INDEXABLE: "0"
+    ports:
+      # Только на localhost — наружу отдаёт nginx на 443 (deploy/nginx-pdd-443.conf).
+      - "127.0.0.1:8798:8798"
+    volumes:
+      - pdd-data:/app/data
+
+volumes:
+  pdd-data:

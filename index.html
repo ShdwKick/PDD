@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Когда на права? — билеты ПДД категории A и B</title>
+<!-- noindex, пока пояснения к ответам не свои (см. ARCHITECTURE.md, «База
+     билетов»). server.js переписывает эту строку по переменной INDEXABLE. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="40 экзаменационных билетов ПДД категории A, B, M: 800 вопросов с пояснениями, как на экзамене в ГАИ.">
+<link rel="canonical" href="https://pdd.burninghouse.ru/">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://pdd.burninghouse.ru/">
+<meta property="og:site_name" content="BurningHouse">
+<meta property="og:title" content="Когда на права? — билеты ПДД категории A и B">
+<meta property="og:description" content="40 экзаменационных билетов ПДД категории A, B, M: 800 вопросов с пояснениями, как на экзамене в ГАИ.">
+
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b1018">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Exo+2:ital,wght@0,500;0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/brand.css">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+
+<!-- Горящий дом за интерфейсом (Design/motion.md). Искры пока без своей
+     повадки — ровно вверх, как у входа; своя (больше искр с каждым днём
+     огонька) появится вместе с огоньком, на этапе оформления. -->
+<div class="bh-backdrop bh-backdrop--page" id="backdrop" aria-hidden="true">
+  <div class="bh-layer"><div class="bh-glow"></div></div>
+  <div class="bh-layer"><div class="bh-sweep"></div></div>
+  <div class="bh-layer"><div class="bh-haze"></div></div>
+  <div class="bh-layer bh-sparks" data-bh-sparks="10"></div>
+</div>
+
+<div class="topbar">
+  <div class="bh-lockup">
+    <a class="bh-lockup-home" href="https://burninghouse.ru" aria-label="BurningHouse — каталог сервисов">
+      <svg class="bh-mark" viewBox="0 0 24 24" role="img" aria-hidden="true">
+        <defs>
+          <linearGradient id="bhFlamePdd" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="var(--flame-base, #9a3412)"/>
+            <stop offset="1" stop-color="var(--flame-tip, #ff7043)"/>
+          </linearGradient>
+        </defs>
+        <path class="bh-flame" fill="url(#bhFlamePdd)" fill-rule="evenodd"
+              d="M12 1.2C13.6 5 16.4 6.6 18.2 9.4C21.4 14.4 18.6 22.4 12 22.4C5.4 22.4 2.6 14.4 5.8 9.4C7.2 7.2 9.2 6 10.2 3.4C10.9 5.6 11.4 6.6 12 7.4C12.4 5.6 12.3 3.4 12 1.2ZM12 9.8 7.4 13.6V19.2H16.6V13.6Z"/>
+      </svg>
+      <span class="bh-name">BurningHouse</span>
+    </a>
+    <span class="bh-sep" aria-hidden="true"></span>
+    <a class="bh-lockup-service" href="/" data-link aria-label="Когда на права? — на главную сервиса">
+      <span class="bh-service">Когда на права?</span>
+    </a>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" id="quietBtn" type="button" title="Приглушить фон" aria-label="Приглушить фон">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" type="button" title="Сменить тему" aria-label="Сменить тему"></button>
+  </div>
+</div>
+
+<main id="view"></main>
+
+<p class="foot">Когда на права? · BurningHouse</p>
+
+<script src="/assets/brand.js"></script>
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+/* Оформление «Когда на права?» — приборная панель: сине-чёрный кластер,
+   аналоговые приборы в хромовых ободках, номерные знаки.
+
+   Своя палитра вместо общих M3-токенов — осознанное исключение, см.
+   Design/palette.md («Исключение: приборная панель»). Два запрета, к которым
+   пришли на примерках: никакого бежевого/кремового и никакого оранжевого в
+   интерфейсе — это узнаваемая палитра Claude и шаблонных «вайбкод»-сайтов.
+   Кальций живёт только в знаке и в свечении фона, как у всей семьи.
+
+   Ночь: чёрные циферблаты, белая главная кнопка. День: белые циферблаты на
+   светлой панели, чёрная главная кнопка. Цвет несут только сигналы —
+   зелёный «верно», красный «ошибка» и красная зона, жёлтый «внимание». */
+
+:root{
+  --flame-base:#9a3412;
+  --flame-tip:#ff7043;
+  /* Ночь и рассвет — не в сторону пламени, как у остальных, а в тон
+     кластеру: иначе коричневая подложка спорит с сине-чёрной панелью. */
+  --night-1:#05080d;
+  --night-2:#131c2b;
+  --dawn-1:#f4f6f9;
+  --dawn-2:#dfe5ee;
+
+  --font:"Golos Text","Segoe UI",system-ui,sans-serif;
+  --font-dash:"Exo 2","Golos Text",system-ui,sans-serif; /* цифры, заголовки, кнопки */
+  --ease:cubic-bezier(0.2,0,0,1);
+
+  /* ---- день ---- */
+  --bg:#eef1f5;
+  --text:#0b1018; --text-2:#5b6878;
+  --dash:linear-gradient(#ffffff,#e9edf2); --dash-edge:#d3d9e1;
+  --dash-shadow:inset 0 1px 0 #fff,0 1px 3px rgba(11,16,24,.1);
+  --face:#fbfcfd; --ink:#0d1117; --needle:#e0241b; --redzone:#e0241b;
+  --card:#ffffff; --card-edge:#d3d9e1;
+  --el:#f1f4f8; --el-edge:#d3d9e1;
+  --primary:#0b1018; --on-primary:#ffffff;
+  --ok:#14823d; --ok-bg:#e1f5e7; --on-ok:#ffffff;
+  --bad:#d42a20; --bad-bg:#fde6e4; --on-bad:#ffffff;
+  --warn:#9a6200; --warn-bg:#fff1cc;
+  --shadow:0 1px 2px rgba(11,16,24,.06),0 6px 18px rgba(11,16,24,.06);
+}
+
+/* ---- ночь ---- */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#070a10;
+    --text:#e8eef6; --text-2:#8fa3bd;
+    --dash:radial-gradient(100% 120% at 50% 0%,#152033,#0a0f17 70%); --dash-edge:#1d2a3d;
+    --dash-shadow:none;
+    --face:#0b0d10; --ink:#f4f6f8; --needle:#ff3b30; --redzone:#ff3b30;
+    --card:#0f1622; --card-edge:#1d2a3d;
+    --el:#141d2b; --el-edge:#243349;
+    --primary:#f4f6f8; --on-primary:#0b1018;
+    --ok:#30d158; --ok-bg:#0f2a1a; --on-ok:#062010;
+    --bad:#ff453a; --bad-bg:#2c1212; --on-bad:#2c0606;
+    --warn:#ffb300; --warn-bg:#2a2008;
+    --shadow:0 2px 8px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#070a10;
+  --text:#e8eef6; --text-2:#8fa3bd;
+  --dash:radial-gradient(100% 120% at 50% 0%,#152033,#0a0f17 70%); --dash-edge:#1d2a3d;
+  --dash-shadow:none;
+  --face:#0b0d10; --ink:#f4f6f8; --needle:#ff3b30; --redzone:#ff3b30;
+  --card:#0f1622; --card-edge:#1d2a3d;
+  --el:#141d2b; --el-edge:#243349;
+  --primary:#f4f6f8; --on-primary:#0b1018;
+  --ok:#30d158; --ok-bg:#0f2a1a; --on-ok:#062010;
+  --bad:#ff453a; --bad-bg:#2c1212; --on-bad:#2c0606;
+  --warn:#ffb300; --warn-bg:#2a2008;
+  --shadow:0 2px 8px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+html{background:var(--bg)}
+body{font-family:var(--font);color:var(--text);background:transparent;-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit}
+
+/* ===================== ШАПКА ===================== */
+.topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;max-width:760px;margin:0 auto;padding:20px 16px 0}
+.topbar-actions{display:flex;align-items:center;gap:4px}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:0;background:transparent;color:var(--text-2);cursor:pointer;display:grid;place-items:center;overflow:hidden;position:relative;flex:none}
+.icon-btn::after{content:"";position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity .2s}
+.icon-btn:hover::after{opacity:.08}
+.icon-btn.is-active{color:var(--text)}
+.icon-btn.is-active::after{opacity:.1}
+.icon-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+#view{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:0 16px 64px}
+
+/* ===================== ОБЩЕЕ ===================== */
+.card{border-radius:16px;background:var(--card);border:1px solid var(--card-edge);box-shadow:var(--shadow)}
+.section-title{
+  font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-2);margin:32px 0 12px;
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;
+  border-radius:8px;border:1px solid var(--el-edge);background:var(--el);color:var(--text);
+  font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:16px;text-decoration:none;cursor:pointer;
+  transition:transform .12s var(--ease),filter .15s;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.btn-hint{font-family:var(--font);font-style:normal;font-weight:500;font-size:13.5px;opacity:.7}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ===================== ГЛАВНАЯ ===================== */
+.hero{padding:40px 0 22px;text-align:center}
+.hero h1{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:clamp(30px,6vw,44px);letter-spacing:-.01em;line-height:1.05}
+.hero p{margin:10px auto 0;font-size:15px;line-height:1.5;color:var(--text-2);max-width:44ch}
+
+.dash{padding:16px 10px 12px;border-radius:18px;background:var(--dash);border:1px solid var(--dash-edge);box-shadow:var(--dash-shadow)}
+.dials{display:grid;grid-template-columns:1fr 1.3fr 1fr;align-items:end;gap:8px;max-width:560px;margin:0 auto}
+
+/* ---- прибор ---- */
+.dial{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
+.dial svg{width:100%;height:auto;overflow:visible}
+.dial .face{fill:var(--face)}
+.dial .tick{stroke:var(--ink);stroke-width:1;opacity:.7}
+.dial .tick.major{stroke-width:2;opacity:1}
+.dial .num{fill:var(--ink);font-family:var(--font-dash);font-weight:600;font-size:8px;text-anchor:middle}
+.dial .redzone{fill:none;stroke:var(--redzone);stroke-width:3;opacity:.9}
+.dial .hub{fill:#1a1d21;stroke:#555b62}
+.dial .val{fill:var(--ink);font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px;text-anchor:middle}
+.dial.big .val{font-size:16px}
+.dial .unit{fill:var(--text-2);font-family:var(--font);font-size:8px;text-anchor:middle}
+.dial .label{margin-top:4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+/* Стрелка поворачивается вокруг оси прибора. Упругая кривая — лёгкий
+   перелёт и возврат, как у настоящей стрелки. */
+.dial .needle{
+  transform-box:view-box;transform-origin:60px 60px;transform:rotate(var(--a,0deg));
+  transition:transform 1.1s cubic-bezier(.34,1.3,.5,1);
+}
+.dial .needle.sweep{transition-duration:.55s;transition-timing-function:cubic-bezier(.5,0,.4,1)}
+.dial .needle line{stroke:var(--needle);stroke-width:2.6;stroke-linecap:round}
+
+.lamps{display:flex;justify-content:center;margin-top:14px;min-height:1px}
+.lamp{
+  display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 10px;border-radius:6px;
+  font-size:13px;font-weight:600;border:1px solid transparent;
+}
+.lamp::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.lamp.warn{background:var(--warn-bg);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.lamp.ok{background:var(--ok-bg);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+/* Контрольная лампа при запуске мигает дважды, потом горит ровно. */
+.lamp.warn::before{animation:lamp-blink .9s steps(1,end) .5s 2}
+@keyframes lamp-blink{50%{opacity:.15}}
+.hub-actions{justify-content:center;margin-top:16px}
+.hub-actions .btn{flex:1 1 200px;max-width:280px}
+
+/* ---- номерные знаки ---- */
+.plates{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.plate{
+  display:grid;grid-template-columns:1fr auto;height:54px;
+  background:#f5f5f2;color:#111;text-decoration:none;font-family:var(--font-dash);font-weight:700;
+  border:2.5px solid #111;border-radius:7px;overflow:hidden;
+  box-shadow:0 2px 0 rgba(0,0,0,.25);
+  transition:transform .15s var(--ease),box-shadow .15s;
+}
+.plate:hover{transform:translateY(-2px);box-shadow:0 4px 0 rgba(0,0,0,.25)}
+.plate:active{transform:translateY(0)}
+.plate:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+/* Центрируем флексом, базовую линию «18» и «из 20» держит строка внутри:
+   align-items:baseline на самом контейнере прижимал текст к верху. */
+.plate .n{display:flex;align-items:center;justify-content:center;font-size:28px;line-height:1;padding-top:2px}
+.plate .n small{font-size:.5em;margin-left:.22em}
+.plate .n.empty{font-family:var(--font);font-size:15px;font-weight:600;opacity:.5;padding-top:0}
+.plate .region{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-width:54px;padding:3px 6px 0;border-left:2px solid #111;font-size:25px;line-height:.9;
+}
+.plate .region i{display:flex;align-items:center;gap:3px;font-style:normal;font-family:var(--font);font-size:8.5px;line-height:1;font-weight:700;letter-spacing:.06em}
+.plate .bar{width:20px;height:8px;border:.5px solid rgba(0,0,0,.4);background:#dcdcd6;position:relative;overflow:hidden}
+.plate .bar::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);background:var(--c,transparent)}
+.plate[data-state="pass"] .bar{--c:#1f9d4c}
+.plate[data-state="fail"] .bar{--c:#d7322a}
+.plate[data-state="progress"] .bar{--c:#e0a800}
+
+.dataset-note{margin-top:28px;font-size:12.5px;line-height:1.5;color:var(--text-2);text-align:center}
+
+/* ===================== БИЛЕТ ===================== */
+.ex-header{display:flex;align-items:center;gap:10px;padding:22px 0 12px}
+.back-btn{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;flex:none;color:var(--text-2);position:relative;text-decoration:none}
+.back-btn::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity .2s}
+.back-btn:hover::after{opacity:.08}
+.back-btn:focus-visible{outline:2px solid var(--text)}
+.ex-header .titles{flex:1;min-width:0}
+.ex-header h1{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:24px}
+.ex-header .sub{font-size:13px;color:var(--text-2);font-variant-numeric:tabular-nums}
+
+/* Лента — ряд ламп по блокам экзамена (4 × 5). */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.strip-block{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.pill{
+  height:30px;min-width:0;border:0;border-radius:4px;border-bottom:2px solid var(--el-edge);
+  background:var(--el);color:var(--text-2);font-family:var(--font-dash);font-weight:700;font-size:13px;cursor:pointer;
+}
+.pill.ok{color:var(--ok);border-bottom-color:var(--ok)}
+.pill.bad{color:var(--bad);border-bottom-color:var(--bad)}
+.pill.current{background:var(--primary);color:var(--on-primary);border-bottom-color:var(--primary)}
+.pill:focus-visible{outline:2px solid var(--text);outline-offset:1px}
+.pill.lit{animation:lamp-on .5s var(--ease)}
+@keyframes lamp-on{0%{transform:scaleY(.6);opacity:.3}60%{transform:scaleY(1.08);opacity:1}100%{transform:none}}
+
+.qcard{overflow:hidden}
+.qcard > :not(.qimg){margin-left:20px;margin-right:20px}
+.loading{padding:48px 0;text-align:center;color:var(--text-2)}
+.qimg{background:#000}
+.qimg img{display:block;width:100%;height:auto;max-width:720px;margin:0 auto}
+.qnum{margin-top:18px;font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.qtext{margin-top:6px;font-size:19px;line-height:1.4;font-weight:600}
+
+/* Новый вопрос въезжает справа — как следующий кадр, а не вспышка. */
+.qcard.enter > *{animation:q-in .28s var(--ease) both}
+.qcard.enter > .qimg{animation-duration:.2s}
+@keyframes q-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+.answers{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.qcard > .answers:last-child{margin-bottom:22px}
+.answer{
+  width:100%;display:flex;align-items:flex-start;gap:12px;text-align:left;
+  padding:12px 14px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--el-edge);background:var(--el);color:var(--text);
+  font:inherit;font-size:15.5px;line-height:1.45;
+  transition:border-color .15s,transform .12s var(--ease);
+}
+.answer:hover:not(:disabled){border-color:var(--text-2)}
+.answer:active:not(:disabled){transform:scale(.99)}
+.answer:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.answer:disabled{cursor:default}
+.answer .key{
+  flex:none;width:26px;height:26px;border-radius:5px;display:grid;place-items:center;margin-top:-1px;
+  font-family:var(--font-dash);font-weight:700;font-size:14px;background:var(--el-edge);color:var(--text);
+}
+.answer.correct{border-color:var(--ok);background:var(--ok-bg)}
+.answer.correct .key{background:var(--ok);color:var(--on-ok)}
+.answer.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.answer.wrong .key{background:var(--bad);color:var(--on-bad)}
+.answer.dim{opacity:.5}
+/* Отклик на ответ: верный — короткий «толчок» вперёд, неверный — встряска. */
+.answer.correct.just{animation:ans-ok .35s var(--ease)}
+.answer.wrong.just{animation:ans-bad .4s var(--ease)}
+@keyframes ans-ok{40%{transform:scale(1.02)}100%{transform:none}}
+@keyframes ans-bad{20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{transform:none}}
+
+.verdict{margin-top:16px;font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.verdict::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.verdict.ok{color:var(--ok)}
+.verdict.bad{color:var(--bad)}
+.tip{margin-top:10px;padding:12px 14px;border-radius:8px;background:var(--el);border:1px solid var(--el-edge);font-size:14.5px;line-height:1.55;animation:q-in .3s var(--ease) both}
+.ref{font-size:12.5px;color:var(--text-2);margin-top:6px}
+.qnav{display:flex;justify-content:flex-end;margin-top:16px;margin-bottom:22px}
+
+/* ---- итог ---- */
+.result{padding:24px 0 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.result .dial{width:min(220px,62%);padding:12px;border-radius:50%;background:var(--dash);border:1px solid var(--dash-edge)}
+.result h2{margin-top:8px;font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:24px}
+.result.pass h2{color:var(--ok)}
+.result.fail h2{color:var(--bad)}
+.result > p{max-width:44ch;line-height:1.5;color:var(--text-2)}
+.result .actions{justify-content:center;margin-top:14px}
+.qcard > .section-title{margin-top:6px}
+
+.mistakes{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.mistakes li{padding:12px 14px;border-radius:8px;background:var(--el);border:1px solid var(--el-edge)}
+.m-q{font-weight:600;line-height:1.45;display:flex;gap:10px}
+.m-num{flex:none;min-width:26px;height:24px;padding:0 6px;border-radius:4px;display:grid;place-items:center;font-family:var(--font-dash);font-weight:700;font-size:13px;background:var(--bad);color:var(--on-bad)}
+.m-img{display:block;width:100%;max-width:420px;height:auto;margin-top:10px;border-radius:6px}
+.m-a{margin-top:8px;font-size:14.5px;line-height:1.45}
+.m-a.bad{color:var(--bad)}
+.m-a.ok{color:var(--ok)}
+.m-tip{margin-top:8px;font-size:14px;line-height:1.55;color:var(--text-2)}
+
+/* ===================== ОГОНЁК ===================== */
+.flame{position:relative;display:inline-block;width:26px;height:26px;flex:none}
+.flame svg{width:100%;height:100%;overflow:visible;display:block}
+/* Обе фигуры растут от основания пламени — так мерцание похоже на огонь,
+   а не на пульсацию значка. */
+.flame .outer,.flame .inner,.flame .coal{transform-box:fill-box;transform-origin:50% 100%}
+.flame .inner{transform:scale(.52)}
+.flame .coal{fill:#e0241b;opacity:0}
+
+.flame[data-state="lit"] .outer{animation:flicker 1.9s ease-in-out infinite}
+.flame[data-state="lit"] .inner{animation:flicker-in 1.3s ease-in-out infinite}
+@keyframes flicker{
+  0%,100%{transform:scale(1,1) skewX(0)}
+  30%{transform:scale(.97,1.04) skewX(1.6deg)}
+  60%{transform:scale(1.02,.97) skewX(-1.4deg)}
+  80%{transform:scale(.99,1.02) skewX(.8deg)}
+}
+@keyframes flicker-in{
+  0%,100%{transform:scale(.52,.52)}
+  40%{transform:scale(.48,.58) skewX(-2deg)}
+  70%{transform:scale(.55,.49) skewX(2deg)}
+}
+/* Тлеет: пламени нет, в основании дышит уголёк. */
+.flame[data-state="ember"] .outer{fill:var(--el-edge)}
+.flame[data-state="ember"] .inner{opacity:0}
+.flame[data-state="ember"] .coal{opacity:1;transform-origin:50% 50%;animation:coal 2.6s ease-in-out infinite alternate}
+@keyframes coal{from{opacity:.45;transform:scale(.8)}to{opacity:1;transform:scale(1.1)}}
+/* Погас: только пунктирный контур. */
+.flame[data-state="out"] .outer{fill:none;stroke:var(--text-2);stroke-width:1.3;stroke-dasharray:2 2}
+.flame[data-state="out"] .inner{opacity:0}
+
+.flame .sparks{position:absolute;inset:0;pointer-events:none}
+.flame .sparks b{position:absolute;left:50%;top:35%;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:#ffcc00;opacity:0}
+.flame .sparks b:nth-child(1){--dx:-18px;--dy:-30px;--t:0s}
+.flame .sparks b:nth-child(2){--dx:14px;--dy:-36px;--t:.5s}
+.flame .sparks b:nth-child(3){--dx:-8px;--dy:-44px;--t:1.1s}
+.flame .sparks b:nth-child(4){--dx:22px;--dy:-22px;--t:1.6s}
+.flame .sparks b:nth-child(5){--dx:-24px;--dy:-16px;--t:.8s}
+.flame .sparks b:nth-child(6){--dx:6px;--dy:-40px;--t:2s}
+/* Большой горящий огонёк изредка отпускает искру вверх. */
+.flame.big[data-state="lit"] .sparks b{animation:spark-rise 2.6s ease-out var(--t) infinite}
+@keyframes spark-rise{
+  0%{opacity:0;transform:translate(0,0)}
+  15%{opacity:1}
+  100%{opacity:0;transform:translate(calc(var(--dx) * .6),calc(var(--dy) * .9))}
+}
+
+/* ---- блок на приборке ---- */
+.streak{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;
+  max-width:560px;margin:0 auto 12px;padding:4px 10px 14px;border-bottom:1px solid var(--dash-edge);
+}
+.flame.big{width:54px;height:54px}
+.streak-title{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:21px;line-height:1.1;color:var(--ink)}
+.streak-hint{margin-top:3px;font-size:13px;line-height:1.35;color:var(--text-2)}
+/* «Бак» нормы на сегодня — сегменты, как у указателя топлива. */
+.fuel{display:flex;align-items:center;gap:3px;margin-top:8px}
+.fuel i{flex:1 1 0;min-width:0;max-width:16px;height:8px;border-radius:1.5px;background:var(--el-edge);transform:skewX(-14deg)}
+.fuel i.on{background:var(--ink)}
+.streak[data-state="lit"] .fuel i.on{background:var(--ok)}
+.fuel span{flex:none;margin-left:6px;font-family:var(--font-dash);font-weight:700;font-size:12px;color:var(--text-2)}
+.streak-best{display:flex;flex-direction:column;align-items:center;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.streak-best b{font-family:var(--font-dash);font-style:italic;font-size:20px;letter-spacing:0;color:var(--ink)}
+
+/* ---- в шапке билета ---- */
+.streak-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 11px 4px 7px;border-radius:999px;
+  background:var(--el);border:1px solid var(--el-edge);
+  font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:15px;
+}
+.streak-chip .flame{width:20px;height:20px}
+.streak-chip[data-state="out"] b,.streak-chip[data-state="ember"] b{color:var(--text-2);font-size:13px}
+
+/* ---- «огонёк зажёгся» ---- */
+.lit-toast{
+  position:fixed;z-index:10;left:50%;bottom:24px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:14px;padding:14px 22px 14px 16px;cursor:pointer;
+  border-radius:16px;background:var(--card);border:1px solid var(--card-edge);
+  box-shadow:0 10px 40px rgba(0,0,0,.35);
+  animation:toast-in .45s cubic-bezier(.34,1.3,.5,1) both;
+}
+.lit-toast.leaving{animation:toast-out .3s var(--ease) both}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,24px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes toast-out{to{opacity:0;transform:translate(-50%,16px)}}
+.lit-toast .flame{width:56px;height:56px}
+.lt-title{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:20px}
+.lt-days{margin-top:2px;font-size:14px;color:var(--text-2)}
+/* Разгорается из уголька: вспышка с перелётом, потом обычное мерцание. */
+.flame.igniting .outer{animation:ignite .8s cubic-bezier(.34,1.4,.5,1) both,flicker 1.9s ease-in-out .8s infinite}
+.flame.igniting .inner{animation:ignite-in .8s cubic-bezier(.34,1.4,.5,1) .1s both,flicker-in 1.3s ease-in-out .9s infinite}
+.flame.igniting .sparks b{animation:spark-burst .9s ease-out .35s both}
+@keyframes ignite{0%{transform:scale(.1);opacity:0}55%{transform:scale(1.14,1.22);opacity:1}100%{transform:scale(1)}}
+@keyframes ignite-in{0%{transform:scale(0);opacity:0}60%{transform:scale(.6,.66);opacity:1}100%{transform:scale(.52)}}
+@keyframes spark-burst{0%{opacity:1;transform:translate(0,0) scale(1.2)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
+/* Счётчик дней перещёлкивается, как барабан одометра. */
+.odo{display:inline-block;height:1.2em;overflow:hidden;vertical-align:bottom;font-family:var(--font-dash);font-style:italic;font-weight:800;color:var(--text)}
+.odo-roll{display:flex;flex-direction:column;animation:odo .45s cubic-bezier(.5,0,.3,1.3) .75s both}
+.odo-roll b{display:block;height:1.2em;line-height:1.2em}
+@keyframes odo{to{transform:translateY(-1.2em)}}
+
+.foot{position:relative;z-index:1;text-align:center;padding:0 16px 32px;font-size:12.5px;color:var(--text-2)}
+
+@media (max-width:40rem){
+  .strip{grid-template-columns:repeat(2,1fr);gap:6px 10px}
+  .qcard > :not(.qimg){margin-left:14px;margin-right:14px}
+  .qtext{font-size:17.5px}
+  .answer{font-size:15px}
+  .dash{padding:14px 6px 10px}
+  .dial .label{font-size:10px}
+  .hero{padding:32px 0 18px}
+  .plates{grid-template-columns:repeat(2,1fr)}
+  .streak{gap:10px;padding:2px 4px 12px}
+  .flame.big{width:44px;height:44px}
+  .streak-title{font-size:18px}
+  .streak-hint{font-size:12px}
+  .streak-best b{font-size:17px}
+  .lit-toast{bottom:16px;width:max-content;max-width:calc(100vw - 32px)}
+}
+
+/* Design/motion.md: движение выключается, всё остаётся в осмысленном виде —
+   стрелки сразу на значениях (см. startDials), лампы горят ровно. */
+@media (prefers-reduced-motion: reduce){
+  .dial .needle,.plate,.btn,.answer{transition:none}
+  .qcard.enter > *,.tip,.pill.lit,.answer.just,.lamp.warn::before{animation:none}
+  /* Огонёк горит неподвижно, уголёк светится ровно, искр нет; карточка
+     появляется без полёта, счётчик сразу показывает новое число. */
+  .flame .outer,.flame .inner,.flame .coal,.flame .sparks b,.lit-toast,.lit-toast.leaving{animation:none!important}
+  .flame[data-state="lit"] .inner,.flame.igniting .inner{transform:scale(.52)}
+  .odo-roll{animation:none;transform:translateY(-1.2em)}
+}
