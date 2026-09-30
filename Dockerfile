@@ -16,7 +16,7 @@ COPY assets/ ./assets/
 RUN mkdir -p /app/data && chown -R node:node /app
 
 RUN set -e; \
-    for f in server.js auth-client.js lib/store.js lib/webpush.js index.html sw.js manifest.webmanifest assets/icons/icon-512.png bank/ab.json bank/meta.json assets/app.js assets/auth-client.js; do \
+    for f in server.js auth-client.js lib/store.js lib/webpush.js index.html sw.js manifest.webmanifest assets/icons/icon-512.png bank/ab.json bank/meta.json bank/tips-own.json assets/app.js assets/auth-client.js; do \
       test -f "$f" || { echo "В образе нет $f — проверьте COPY в Dockerfile"; exit 1; }; \
     done; \
     node --check server.js && node --check auth-client.js && node --check lib/store.js && node --check lib/webpush.js
