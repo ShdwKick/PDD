@@ -1009,3 +1009,29 @@ a.lamp:hover{filter:brightness(1.1)}
 @media (prefers-reduced-motion: reduce){
   .flame .mid,.flame::before{animation:none!important}
 }
+
+/* ---- окно «Аккаунт» (кнопка профиля у вошедшего) ----
+   Как у Puzzle и Movies — окно по центру, а не выход с одного нажатия. */
+.acc-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(3,6,12,.55);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:acc-fade .18s ease-out both}
+.acc-backdrop.leaving{animation:acc-fade .18s ease-in reverse both}
+@keyframes acc-fade{from{opacity:0}to{opacity:1}}
+.acc-modal{width:min(420px,100%);padding:14px 16px 16px;border-radius:18px;background:var(--card);border:1px solid var(--card-edge);
+  box-shadow:0 20px 60px rgba(0,0,0,.45);animation:acc-in .22s cubic-bezier(.34,1.3,.5,1) both}
+@keyframes acc-in{from{transform:translateY(10px) scale(.97)}to{transform:none}}
+.acc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.acc-head h2{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:22px}
+.acc-user{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--el);border:1px solid var(--el-edge)}
+.acc-user .flame{width:34px;height:34px}
+.acc-user > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.acc-user b{font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-user > span > span{font-size:12.5px;color:var(--text-2)}
+.acc-links{display:flex;flex-direction:column;margin-top:10px}
+.acc-links a{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 6px;border-bottom:1px solid var(--card-edge);
+  color:var(--text);text-decoration:none;font-weight:600;font-size:15px}
+.acc-links a:last-child{border-bottom:0}
+.acc-links a .icon{width:18px;height:18px;color:var(--text-2)}
+.acc-links a:hover .icon{color:var(--text)}
+.acc-links a:focus-visible{outline:2px solid var(--text);outline-offset:-2px;border-radius:6px}
+.acc-logout{width:100%;margin-top:12px;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--el-edge))}
+@media (prefers-reduced-motion: reduce){ .acc-backdrop,.acc-modal{animation:none!important} }

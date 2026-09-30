@@ -203,13 +203,64 @@ function applyAuthButton() {
   btn.classList.remove("is-hidden");
   btn.classList.toggle("is-active", signedIn());
   const who = me?.user?.name;
-  btn.title = signedIn() ? `Выйти${who ? ` (${who})` : ""}` : "Войти через аккаунт BurningHouse";
+  btn.title = signedIn() ? `Аккаунт${who ? ` (${who})` : ""}` : "Войти через аккаунт BurningHouse";
   btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-haspopup", signedIn() ? "dialog" : "false");
 }
+// Вошедшему — окно «Аккаунт» (как у Puzzle и Movies), а не выход с одного
+// нажатия: выйти можно там, внизу. Гостю — сразу вход.
 $("authBtn").addEventListener("click", () => {
   if (!auth) return;
-  if (signedIn()) { setMe(null); auth.logout(); } else login();
+  if (signedIn()) openAccount(); else login();
 });
+
+const closeIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+const chevronIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>`;
+
+function openAccount() {
+  document.querySelector(".acc-backdrop")?.remove();
+  const st = me?.streak || { current: 0, todayDone: false, todayCount: 0, target: 20 };
+  const name = me?.user?.name || "Аккаунт";
+  const back = document.createElement("div");
+  back.className = "acc-backdrop";
+  back.innerHTML = `
+    <div class="acc-modal" role="dialog" aria-modal="true" aria-labelledby="accTitle">
+      <div class="acc-head">
+        <h2 id="accTitle">Аккаунт</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Закрыть">${closeIcon}</button>
+      </div>
+      <div class="acc-user">
+        ${flameSvg(flameState(st), "", st.current)}
+        <span><b>${esc(name)}</b><span>${st.current ? `${st.current} ${daysWord(st.current)} подряд` : "огонёк не горит"} · аккаунт BurningHouse</span></span>
+      </div>
+      <nav class="acc-links">
+        <a href="/garazh" data-link data-close>Гараж${chevronIcon}</a>
+        <a href="/znachki" data-link data-close>Значки и рекорды${chevronIcon}</a>
+        <a href="/plan" data-link data-close>План и напоминания${chevronIcon}</a>
+        <a href="${esc(auth.authBase)}/" target="_blank" rel="noopener">Управление аккаунтом и друзьями${chevronIcon}</a>
+      </nav>
+      <button type="button" class="btn acc-logout" data-logout>Выйти</button>
+    </div>`;
+  document.body.append(back);
+  const prevFocus = document.activeElement;
+  const close = () => {
+    document.removeEventListener("keydown", onKey);
+    back.classList.add("leaving");
+    setTimeout(() => back.remove(), 180);
+    prevFocus?.focus?.({ preventScroll: true });
+  };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  back.addEventListener("click", e => {
+    if (e.target === back || e.target.closest("[data-close]")) close();
+  });
+  back.querySelector("[data-logout]").addEventListener("click", () => {
+    close();
+    setMe(null);
+    auth.logout();
+  });
+  back.querySelector("[data-close].icon-btn").focus();
+}
 
 /** Вход: обмен кода, подгрузка /api/me, один раз — перенос гостя. Ошибки
  * сети не фатальны: гость решает и без этого, вошедший — по кэшу. */
