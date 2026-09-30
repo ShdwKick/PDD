@@ -378,7 +378,8 @@ a{color:inherit}
 .odo-roll b{display:block;height:1.2em;line-height:1.2em}
 @keyframes odo{to{transform:translateY(-1.2em)}}
 
-.foot{position:relative;z-index:1;text-align:center;padding:0 16px 32px;font-size:12.5px;color:var(--text-2)}
+/* Подпись — в самом низу страницы, ниже машины на дороге (машина поднята над ней). */
+.foot{position:relative;z-index:1;text-align:center;padding:140px 16px 8px;font-size:12.5px;color:var(--text-2)}
 
 @media (max-width:40rem){
   .strip{grid-template-columns:repeat(2,1fr);gap:6px 10px}
@@ -549,7 +550,7 @@ a{color:inherit}
 :root[data-theme="dark"]{--car-body:#2a62bf;--car-dark:#173f80;--car-light:#4a80d6;--car-glass:#0b1118;--tail:#8e1c16}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--car-body:#2a62bf;--car-dark:#173f80;--car-light:#4a80d6;--car-glass:#0b1118;--tail:#8e1c16}}
 
-.car{position:fixed;z-index:0;bottom:6px;left:calc(50% + 129px);width:118px;transform:translateX(-50%);pointer-events:none}
+.car{position:fixed;z-index:0;bottom:30px;left:calc(50% + 129px);width:118px;transform:translateX(-50%);pointer-events:none}
 .car svg{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 100%}
 .car .car-shadow{fill:#000;opacity:.35}
 .car .tyre{fill:var(--car-tyre)}
@@ -599,7 +600,7 @@ a{color:inherit}
 @keyframes car-hop{20%{transform:translateY(-10px)}40%{transform:none}60%{transform:translateY(-6px)}80%{transform:none}}
 
 @media (max-width:40rem){
-  .car{width:84px;bottom:4px}
+  .car{width:84px;bottom:28px}
 }
 @media (prefers-reduced-motion: reduce){
   .car svg,.car.ok svg,.car.bad svg,.car.lit svg{animation:none!important}
@@ -814,7 +815,6 @@ a.lamp:hover{filter:brightness(1.1)}
 /* ---- гараж ---- */
 .garage-stage{position:relative;display:grid;place-items:center;height:230px;margin-top:4px;border-radius:18px;overflow:hidden;cursor:pointer;
   background:radial-gradient(80% 70% at 50% 100%,#1b2740,#0a0f17 70%);border:1px solid var(--dash-edge)}
-.garage-stage::after{content:"";position:absolute;left:10%;right:10%;bottom:26px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)}
 .car.garage-car{position:relative;left:auto;bottom:auto;transform:none;width:230px;z-index:0}
 .car.garage-car:not(.lit) svg{animation:none}
 .garage-opts{display:flex;flex-wrap:wrap;gap:8px}
