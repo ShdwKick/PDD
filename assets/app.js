@@ -587,7 +587,7 @@ function route() {
 /* ---------- главная ---------- */
 
 async function renderHub() {
-  document.title = `${SERVICE_NAME} — билеты ПДД категории A и B`;
+  document.title = `${SERVICE_NAME} — билеты ПДД 2026 категории A и B онлайн`;
   const cfg = await loadConfig();
   const s = { ...currentSummary(cfg), runs: localRuns() };
 
@@ -1103,7 +1103,7 @@ const stillOn = path => location.pathname.replace(/\/+$/, "") === path;
 async function renderTicket(n) {
   const cfg = await loadConfig();
   if (n < 1 || n > cfg.tickets) return navigate("/", { replace: true });
-  document.title = `Билет ${n} — ${SERVICE_NAME}`;
+  document.title = `Билет ${n} ПДД 2026 категории AB — ${SERVICE_NAME}`;
   quizShell({ title: `Билет ${n}`, backLabel: "Все билеты" }, cfg);
 
   let questions;
@@ -1169,7 +1169,7 @@ const EXAM_REASON = {
 
 async function renderExam() {
   const cfg = await loadConfig();
-  document.title = `Экзамен — ${SERVICE_NAME}`;
+  document.title = `Экзамен ПДД онлайн как в ГИБДД — ${SERVICE_NAME}`;
   quizShell({ title: "Экзамен", restart: false, extraHeader: `<span class="timer" id="tTimer" role="timer" aria-live="off">20:00</span>` }, cfg);
 
   const pick = (except = []) => {
@@ -1320,7 +1320,7 @@ const MINI_SIZES = [5, 10, 15];
 
 async function renderMini(n) {
   const cfg = await loadConfig();
-  document.title = `Мини-билет — ${SERVICE_NAME}`;
+  document.title = `Мини-билет: ${n} случайных вопросов ПДД — ${SERVICE_NAME}`;
   quizShell({ title: `Мини-билет · ${n}`, restart: false }, cfg);
   let questions;
   try { questions = (await (await fetch(`/api/random?n=${n}`)).json()).questions; }
@@ -1358,7 +1358,7 @@ async function loadTopics() {
 
 async function renderTopics() {
   const cfg = await loadConfig();
-  document.title = `Билеты по темам — ${SERVICE_NAME}`;
+  document.title = `Билеты ПДД по темам — ${SERVICE_NAME}`;
   view.innerHTML = `
     <div class="ex-header">
       <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
@@ -1386,7 +1386,7 @@ async function renderTopic(i) {
   try { [data, st] = await Promise.all([fetch(`/api/topics/${i}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), qState()]); }
   catch (e) { console.error(e); return loadFailed(); }
   if (!stillOn(`/tema/${i}`)) return;
-  document.title = `${data.name} — ${SERVICE_NAME}`;
+  document.title = `${data.name} — вопросы ПДД по теме — ${SERVICE_NAME}`;
   view.querySelector(".ex-header h1").textContent = data.name;
   // Подход — 20 вопросов: сначала ошибки, потом нерешённые, потом остальные.
   const learned = new Set(st.learned), wrong = new Set(st.mistakes);
