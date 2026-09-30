@@ -56,7 +56,14 @@
         <stop offset=".82" stop-color="var(--car-body)"/>
         <stop offset="1" stop-color="var(--car-dark)"/>
       </linearGradient>
+      <radialGradient id="underGlow">
+        <stop offset="0" stop-color="#3aa0ff" stop-opacity=".85"/>
+        <stop offset="1" stop-color="#3aa0ff" stop-opacity="0"/>
+      </radialGradient>
     </defs>
+    <!-- Тюнинг за рубежи огонька (assets/motivation.js, MILESTONES): детали
+         включаются классами up-* на .car, пока горит серия. -->
+    <ellipse class="part p-glow" cx="80" cy="141" rx="84" ry="12" fill="url(#underGlow)"/>
     <ellipse class="car-shadow" cx="80" cy="145" rx="74" ry="6"/>
     <rect class="tyre" x="15" y="116" width="22" height="28" rx="5"/>
     <rect class="tyre" x="123" y="116" width="22" height="28" rx="5"/>
@@ -77,6 +84,19 @@
     <rect class="car-plate" x="61" y="106" width="38" height="11" rx="1.5"/>
     <rect class="car-flag" x="92" y="112" width="5" height="3"/>
     <rect class="bumper" x="12" y="124" width="136" height="11" rx="4"/>
+    <g class="part p-stripes">
+      <rect x="69" y="52" width="7" height="5"/><rect x="84" y="52" width="7" height="5"/>
+      <rect x="69" y="87" width="7" height="19"/><rect x="84" y="87" width="7" height="19"/>
+      <rect x="69" y="117" width="7" height="7"/><rect x="84" y="117" width="7" height="7"/>
+    </g>
+    <g class="part p-spoiler">
+      <rect class="sp-leg" x="40" y="83" width="5" height="6"/><rect class="sp-leg" x="115" y="83" width="5" height="6"/>
+      <path class="sp-wing" d="M18 77 L142 77 L138 84 L22 84 Z"/>
+    </g>
+    <g class="part p-fire">
+      <path class="exhaust" d="M32 135 Q27 141 32 150 Q37 141 32 135 Z"/>
+      <path class="exhaust" d="M128 135 Q123 141 128 150 Q133 141 128 135 Z"/>
+    </g>
   </svg>
 </div>
 
@@ -121,6 +141,8 @@
 
 <!-- Копия Auth/client/auth-client-browser.js — не редактировать здесь. -->
 <script src="/assets/auth-client.js"></script>
+<!-- Готовность, значки, рубежи — общий с сервером расчёт (lib/store.js). -->
+<script src="/assets/motivation.js"></script>
 <script type="module" src="/assets/app.js"></script>
 </body>
 </html>

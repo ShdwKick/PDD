@@ -12,8 +12,12 @@ import {
   getRun, setRunAnswer, resetRun, localRuns, getLocalPlan, setLocalPlan, targetFor,
   recordGuestAnswer, finishGuestRun, guestSummary, guestStreak,
   hasGuestStats, exportGuest, clearGuestStats, outbox, outboxPush, outboxDrop, plural,
-  guestQState, recordGuestExam,
+  guestQState, recordGuestExam, guestFacts,
 } from "./progress.js";
+
+// Готовность, значки, рубежи, неделя — assets/motivation.js (обычный <script>:
+// тот же файл считает значки друзей на сервере).
+const M = window.PddMotivation;
 
 const SERVICE_NAME = "Когда на права?";
 const $ = id => document.getElementById(id);
@@ -117,6 +121,7 @@ const signedIn = () => !!(auth && auth.isAuthenticated());
 const currentSummary = cfg => me ? me.summary : guestSummary(cfg.unique);
 const currentStreak = cfg => me ? me.streak : guestStreak(cfg.unique);
 const currentPlan = () => me ? me.plan : getLocalPlan();
+const currentFacts = cfg => (me && me.facts) || guestFacts(cfg.unique);
 
 function setMe(next) {
   me = next;
@@ -145,6 +150,7 @@ function applyServer(r) {
   if (r.streak) me.streak = r.streak;
   if (r.summary) me.summary = r.summary;
   if (r.plan) me.plan = r.plan;
+  if (r.facts) me.facts = r.facts;
   setMe(me);
 }
 
@@ -362,6 +368,15 @@ function flameState(st) {
  * медленно, горит — крейсерская. */
 function setDrive(st) {
   $("backdrop").dataset.drive = flameState(st);
+  applyCarParts(st);
+}
+
+/** Тюнинг машины — по текущей серии (M.MILESTONES): полосы, спойлер,
+ * подсветка, цвет. Погас огонёк — машина снова без деталей. */
+function applyCarParts(st) {
+  const car = $("car");
+  const parts = new Set(M.milestone(st.current || 0).parts);
+  for (const m of M.MILESTONES) car.classList.toggle(`up-${m.part}`, parts.has(m.part));
 }
 
 /** Реакция машины на ответ: ok — газует, bad — тормозит и заносит,
@@ -455,7 +470,13 @@ function streakFooter(st, plan) {
     freezes = `<span class="login-hint"><span>Заморозки и огонёк на всех устройствах</span>
       <button type="button" class="btn-mini" data-login>Войти</button></span>`;
   }
+  const ms = M.milestone(st.current || 0);
+  const rubezh = ms.next ? `<div class="rubezh" title="Детали держатся, пока горит огонёк">
+      <span>Рубеж <b>${ms.next.at} ${daysWord(ms.next.at)}</b> — машине ${esc(ms.next.name)}${st.current ? ` · ещё ${ms.left} ${daysWord(ms.left)}` : ""}</span>
+      <i class="rubezh-bar" style="--p:${(ms.progress * 100).toFixed(0)}%"></i>
+    </div>` : "";
   return `<div class="streak-foot">
+    ${rubezh}
     <div class="plan-row">
       <span class="plan-name">План: <b>${esc(planLabel(plan))}</b></span>
       <a class="btn-mini" href="/plan" data-link>Настроить план</a>
@@ -577,6 +598,7 @@ function route() {
   if (p === "/ekzamen") return renderExam();
   if (p === "/oshibki") return renderMistakes();
   if (p === "/temy") return renderTopics();
+  if (p === "/znachki") return renderBadges();
   const mini = /^\/mini\/(\d{1,2})$/.exec(p);
   if (mini && Number(mini[1]) >= 5 && Number(mini[1]) <= 20) return renderMini(Number(mini[1]));
   const t = /^\/tema\/(\d{1,2})$/.exec(p);
@@ -622,6 +644,7 @@ async function renderHub() {
         ${dial({ value: s.learned, max: cfg.questions, label: `решено верно из ${cfg.questions}`, big: true })}
         ${dial({ value: s.passedTickets, max: cfg.tickets, unit: `из ${cfg.tickets}`, label: "билетов сдано" })}
       </div>
+      <div id="ready">${readyBlock(currentFacts(cfg))}</div>
     </section>
     <div class="lamps">
       ${s.mistakes
@@ -650,6 +673,8 @@ async function renderHub() {
       </a>
     </div>
 
+    <div id="motiv">${motivBlock(currentFacts(cfg))}</div>
+
     <h2 class="section-title">Друзья</h2>
     <div class="friends" id="friends">${me ? `<p class="loading">Загрузка…</p>` : friendsGuest()}</div>
 
@@ -668,7 +693,19 @@ async function renderHub() {
   });
   startDials(view.querySelector(".dash"), { ignition: firstVisitThisSession() });
   view.querySelector("#friends [data-login]")?.addEventListener("click", login);
-  if (me) loadFriends();
+  if (me) {
+    // Факты в кэше /api/me могли устареть (решали билеты) — освежаем
+    // только блоки мотивации, не перерисовывая главную. Друзья — после:
+    // им нужна свежая неделя для сравнения.
+    loadMe().catch(() => {}).then(() => {
+      if (!$("motiv")) return;
+      const f = currentFacts(cfg);
+      $("ready").innerHTML = readyBlock(f);
+      $("motiv").innerHTML = motivBlock(f);
+      checkBadges(cfg);
+      loadFriends();
+    });
+  } else checkBadges(cfg);
 }
 
 /* ---------- друзья ----------
@@ -715,6 +752,15 @@ async function loadFriends() {
     } catch { /* отменили «поделиться» — ничего не делаем */ }
   });
   for (const b of $("friends").querySelectorAll("[data-nudge]")) b.addEventListener("click", () => nudge(b));
+  // Место за неделю среди друзей — в карточке недели.
+  const mine = M.week(currentFacts(config)).n;
+  const others = data.friends.filter(f => f.started).map(f => f.week || 0);
+  if (others.length && mine > 0 && $("weekRank")) {
+    const place = 1 + others.filter(n => n > mine).length;
+    $("weekRank").textContent = place === 1
+      ? "Больше всех среди друзей за 7 дней"
+      : `${place}-е место среди друзей за 7 дней`;
+  }
 }
 
 function friendRow(f) {
@@ -727,7 +773,8 @@ function friendRow(f) {
     flame = flameState(s);
     const today = s.todayDone ? `сегодня ✓` : `сегодня ${s.todayCount}/${s.target}`;
     const exam = f.lastExam ? ` · экзамен: ${f.lastExam.passed ? "сдал(а)" : "не сдал(а)"}` : "";
-    line = `<span class="f-sub">${today} · билетов сдано ${f.passedTickets}/40${exam}</span>`;
+    const extra = ` · за неделю ${f.week || 0}${f.badges ? ` · значков ${f.badges}` : ""}`;
+    line = `<span class="f-sub">${today} · билетов сдано ${f.passedTickets}/40${exam}${extra}</span>`;
     if (s.todayDone) action = `<span class="f-sent ok">молодец</span>`;
     else action = f.nudgedToday ? `<span class="f-sent">подтолкнули</span>` : `<button type="button" class="btn-mini" data-nudge="${esc(f.userId)}">Подтолкнуть</button>`;
   }
@@ -824,7 +871,7 @@ const flagSvg = `<svg class="fo-flag" viewBox="0 0 64 48" aria-hidden="true">
 </svg>`;
 
 /** Праздник в конце: kind — perfect | pass | fail. Сам уходит через ~3 с. */
-function celebrateFinish({ kind, sub = "" }) {
+function celebrateFinish({ kind, sub = "", title = null }) {
   document.querySelector(".finish-overlay")?.remove();
   const good = kind !== "fail";
   const el = document.createElement("div");
@@ -837,7 +884,7 @@ function celebrateFinish({ kind, sub = "" }) {
     <div class="fo-confetti" aria-hidden="true">${confetti}</div>
     <div class="fo-card">
       <div class="fo-icons">${good ? flagSvg : ""}${flameSvg(good ? "lit" : "ember", "fo-flame")}</div>
-      <h2>${esc(pickOne(FINISH[kind]))}</h2>
+      <h2>${esc(title || pickOne(FINISH[kind]))}</h2>
       ${sub ? `<p>${esc(sub)}</p>` : ""}
     </div>`;
   document.body.append(el);
@@ -845,6 +892,186 @@ function celebrateFinish({ kind, sub = "" }) {
   const close = () => { el.classList.add("leaving"); setTimeout(() => el.remove(), 350); };
   el.addEventListener("click", close);
   setTimeout(close, good ? 3200 : 2600);
+}
+
+/* ---------- готовность, неделя, значки ----------
+   Считает assets/motivation.js по фактам (currentFacts): у гостя — из
+   localStorage, у вошедшего — из /api/me. Здесь только вёрстка. */
+
+const BADGE_ICONS = {
+  star: '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4l-5.3 3 1.2-6-4.5-4.1 6-.7z"/>',
+  flag: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6"/>',
+  shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  bolt: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
+  road: '<path d="M8 3L4 21M16 3l4 18M12 4v3M12 10.5v3M12 17v3"/>',
+  snow: '<path d="M12 2v20M4.2 6.5l15.6 9M4.2 17.5l15.6-9M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',
+  crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+};
+
+/** Значок-медаль: хромовый ободок, как у приборов; не полученный — тусклый,
+ * с дугой прогресса. */
+let medalUid = 0;
+function medal(b, cls = "") {
+  const id = `md${medalUid++}`;
+  const arc = !b.got && b.progress > 0
+    ? `<circle class="m-prog" cx="24" cy="24" r="21" pathLength="100" style="--p:${(b.progress * 100).toFixed(0)}"/>` : "";
+  const icon = b.icon === "flame"
+    ? `<path class="m-flame" d="${FLAME_PATH}" transform="translate(13.8 13.5) scale(.85)"/>`
+    : `<g class="m-icon" transform="translate(14 14) scale(.83)">${BADGE_ICONS[b.icon] || ""}</g>`;
+  return `<span class="medal ${b.got ? "got" : "locked"} ${cls}" data-icon="${b.icon}" aria-hidden="true"><svg viewBox="0 0 48 48">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0f2f4"/><stop offset=".45" stop-color="#8a9097"/><stop offset=".55" stop-color="#555b62"/><stop offset="1" stop-color="#d4d8dc"/></linearGradient></defs>
+    <circle class="m-ring" cx="24" cy="24" r="23" fill="url(#${id})"/>
+    <circle class="m-face" cx="24" cy="24" r="19.5"/>${arc}${icon}
+  </svg></span>`;
+}
+
+/** Готовность к экзамену — полоса внизу приборки: 20 делений, отметка 90%. */
+function readyBlock(f) {
+  const r = M.readiness(f);
+  const segs = 20, on = Math.round(r.pct / 100 * segs);
+  const steps = r.steps.map(x => x.href
+    ? `<a class="btn-mini" href="${x.href}" data-link>${esc(x.text)}</a>`
+    : `<span class="ready-step">${esc(x.text)}</span>`).join("");
+  const exams = r.examsN ? ` · сдано ${r.passes} из ${r.examsN} ${plural(r.examsN, "последнего экзамена", "последних экзаменов", "последних экзаменов")}` : "";
+  return `<div class="ready" data-ready="${r.ready}">
+    <div class="ready-head">
+      <span class="ready-label">Готовность к экзамену</span>
+      <b class="ready-pct">${r.pct}<small>%</small></b>
+    </div>
+    <div class="ready-bar" role="img" aria-label="Готовность ${r.pct}%">
+      ${Array.from({ length: segs }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}
+      <em class="ready-goal" title="Цель — 90%"></em>
+    </div>
+    <p class="ready-level"><b>${esc(r.level)}</b> · выучено ${r.know}% вопросов${exams}</p>
+    ${steps ? `<div class="ready-steps">${steps}</div>` : ""}
+  </div>`;
+}
+
+function addDaysKey(key, n) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+const shortDay = key => new Date(key + "T12:00:00").toLocaleDateString("ru-RU", { weekday: "short" });
+
+/** Неделя и значки на главной. */
+function motivBlock(f) {
+  const w = M.week(f);
+  const all = M.badges(f);
+  const got = all.filter(b => b.got);
+  const seen = seenBadges() || [];
+  // Сначала недавно полученные (в каком порядке их увидели), потом остальные.
+  const order = id => { const i = seen.indexOf(id); return i < 0 ? -1 : i; };
+  const recent = [...got].sort((a, b) => order(b.id) - order(a.id)).slice(0, 5);
+  const next = all.filter(b => !b.got).sort((a, b) => b.progress - a.progress)[0];
+  const delta = w.delta === null ? "" : w.delta >= 0
+    ? `<em class="up">+${w.delta}% к прошлой</em>` : `<em class="down">${w.delta}% к прошлой</em>`;
+  const dots = Array.from({ length: 7 }, (_, i) => {
+    const key = addDaysKey(f.today, i - 6), d = f.days[key];
+    return `<i class="${d?.done ? "on" : d ? "part" : ""}" title="${shortDay(key)}"></i>`;
+  }).join("");
+  const strip = recent.length
+    ? recent.map(b => `<span class="bs-item" title="${esc(b.title)}">${medal(b)}</span>`).join("")
+    : `<span class="bs-empty">Первый значок — за первый ответ</span>`;
+  const nextHtml = next ? `<span class="bs-next">${medal(next)}<span class="bs-text"><b>${esc(next.title)}</b><span>${esc(next.desc)}</span><i class="bs-bar" style="--p:${(next.progress * 100).toFixed(0)}%"></i></span></span>` : "";
+  return `
+    <h2 class="section-title">Неделя</h2>
+    <div class="week card">
+      <div class="w-tile"><b>${w.n}</b><span>${plural(w.n, "вопрос", "вопроса", "вопросов")} за 7 дней</span>${delta}</div>
+      <div class="w-tile"><b>${w.accuracy === null ? "—" : w.accuracy + "%"}</b><span>ответов верно</span></div>
+      <div class="w-tile"><b>${w.doneDays}<small>/7</small></b><span>дней с нормой</span><span class="w-dots">${dots}</span></div>
+      <div class="w-tile"><b>${w.bestDay ? w.bestDay.n : 0}</b><span>лучший день${w.bestDay ? ` · ${shortDay(w.bestDay.day)}` : ""}</span></div>
+      <p class="w-rank" id="weekRank"></p>
+    </div>
+    <h2 class="section-title with-link">Значки · ${got.length} из ${all.length}<a href="/znachki" data-link>Все значки и рекорды</a></h2>
+    <a class="badges-strip card" href="/znachki" data-link aria-label="Значки: ${got.length} из ${all.length}">
+      <span class="bs-got">${strip}</span>${nextHtml}
+    </a>`;
+}
+
+/* Какие значки человек уже видел — чтобы новые показать тостом один раз.
+   Отдельно для гостя и каждого аккаунта. */
+const badgesKey = () => `bh-pdd-badges:${me?.user?.id || "guest"}`;
+function seenBadges() {
+  try { return JSON.parse(localStorage.getItem(badgesKey())); } catch { return null; }
+}
+
+function checkBadges(cfg) {
+  const got = M.badges(currentFacts(cfg)).filter(b => b.got);
+  const seen = seenBadges();
+  const save = ids => { try { localStorage.setItem(badgesKey(), JSON.stringify(ids)); } catch {} };
+  if (!seen) {
+    // Первый раз — не сыпать тостами за всё накопленное: один общий.
+    save(got.map(b => b.id));
+    if (got.length > 1) badgeToast({ title: `Открыто значков: ${got.length}`, sub: "Посмотрите, что уже получено", b: got[got.length - 1] });
+    else if (got.length === 1) badgeToast({ title: `Новый значок: ${got[0].title}`, sub: got[0].desc, b: got[0] });
+    return;
+  }
+  const fresh = got.filter(b => !seen.includes(b.id));
+  if (!fresh.length) return;
+  save([...seen, ...fresh.map(b => b.id)]);
+  badgeToast(fresh.length === 1
+    ? { title: `Новый значок: ${fresh[0].title}`, sub: fresh[0].desc, b: fresh[0] }
+    : { title: `Новые значки: ${fresh.length}`, sub: fresh.map(b => b.title).join(", "), b: fresh[fresh.length - 1] });
+}
+
+function badgeToast({ title, sub, b }) {
+  document.querySelector(".badge-toast")?.remove();
+  const el = document.createElement("a");
+  el.className = "lit-toast badge-toast";
+  el.href = "/znachki";
+  el.dataset.link = "";
+  el.setAttribute("role", "status");
+  el.innerHTML = `${medal(b, "pop")}<div><p class="lt-title">${esc(title)}</p><p class="lt-days">${esc(sub)}</p></div>`;
+  // Не поверх праздника: если он ещё на экране — ждём.
+  const show = () => {
+    if (document.querySelector(".finish-overlay")) return setTimeout(show, 500);
+    document.body.append(el);
+    const close = () => { el.classList.add("leaving"); setTimeout(() => el.remove(), 300); };
+    el.addEventListener("click", close);
+    setTimeout(close, 5500);
+  };
+  show();
+}
+
+/* ---------- страница «Значки и рекорды» ---------- */
+
+async function renderBadges() {
+  document.title = `Значки и рекорды — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (me) { try { await loadMe(); } catch {} }
+  if (!stillOn("/znachki")) return;
+  const f = currentFacts(cfg);
+  setDrive(currentStreak(cfg));
+  const all = M.badges(f), rec = M.records(f);
+  const mmss = s => s === null ? "—" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  view.innerHTML = `
+    <div class="ex-header">
+      <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
+      <div class="titles"><h1>Значки и рекорды</h1><p class="sub">${all.filter(b => b.got).length} из ${all.length} значков</p></div>
+    </div>
+    <h2 class="section-title">Рекорды</h2>
+    <div class="records">
+      <div class="rec card"><b>${rec.bestStreak}</b><span>${daysWord(rec.bestStreak)} огонька подряд</span></div>
+      <div class="rec card"><b>${rec.bestCombo}</b><span>верных ответов подряд</span></div>
+      <div class="rec card"><b>${rec.maxDay}</b><span>вопросов за один день</span></div>
+      <div class="rec card"><b>${mmss(rec.fastestExam)}</b><span>самый быстрый сданный экзамен</span></div>
+      <div class="rec card"><b>${rec.perfectTickets}</b><span>билетов на 20 из 20</span></div>
+      <div class="rec card"><b>${rec.perfectExams}</b><span>экзаменов без ошибок</span></div>
+    </div>
+    <h2 class="section-title">Значки</h2>
+    <ul class="badge-grid">
+      ${all.map(b => `<li class="badge-cell ${b.got ? "got" : ""}">${medal(b)}<b>${esc(b.title)}</b><span>${esc(b.desc)}</span>${b.got ? "" : `<i class="bs-bar" style="--p:${(b.progress * 100).toFixed(0)}%"></i>`}</li>`).join("")}
+    </ul>
+    <h2 class="section-title">Тюнинг машины</h2>
+    <p class="tuning-note">Каждый рубеж огонька добавляет машине деталь. Детали держатся, пока горит серия: пропустили день без заморозки — машина снова без тюнинга.</p>
+    <ul class="tuning">
+      ${M.MILESTONES.map(m => `<li class="${f.streak.current >= m.at ? "on" : ""}"><b>${m.at} ${daysWord(m.at)}</b><span>${esc(m.name)}</span></li>`).join("")}
+    </ul>`;
+  checkBadges(cfg);
 }
 
 /* ---------- решатель ----------
@@ -897,7 +1124,9 @@ function runQuiz(cfg, o) {
   // Мотивация по ходу: фраза к каждому ответу (запоминаем, чтобы при
   // возврате к вопросу она не менялась) и серия верных подряд.
   const praise = {};
-  let combo = 0, comboAt = null;
+  let combo = 0, comboAt = null, comboRecordAt = null;
+  // Рекорд серии верных подряд сравниваем с тем, что было до этого подхода.
+  const bestComboBefore = currentFacts(cfg).bestCombo || 0;
   let idx = 0, finished = false;
   const feedback = o.feedback !== false;
   const answeredCount = () => Object.keys(answers).length;
@@ -958,7 +1187,7 @@ function runQuiz(cfg, o) {
           ${chosen === q.correct
             ? `Верно<span class="v-praise">${esc(praise[idx] || "")}</span>${justAnswered ? `<span class="plus-one" aria-hidden="true">+1</span>` : ""}`
             : `Неверно — правильный ответ ${q.correct + 1}<span class="v-praise">${esc(praise[idx] || "")}</span>`}
-          ${justAnswered && comboAt === idx ? `<span class="combo-chip">${flameSvg("lit")}${combo} подряд!</span>` : ""}
+          ${justAnswered && comboAt === idx ? `<span class="combo-chip">${flameSvg("lit")}${combo} подряд!${comboRecordAt === idx ? " Рекорд!" : ""}</span>` : ""}
         </div>
         ${q.tip ? `<div class="tip"><p>${esc(q.tip)}</p>${q.ref ? `<p class="ref">${esc(q.ref)}</p>` : ""}</div>` : ""}` : ""}
       ${answered && feedback ? `<div class="qnav"><button type="button" class="btn primary" id="tNext">${isLast ? "Итог" : "Дальше"}</button></div>` : ""}
@@ -981,6 +1210,8 @@ function runQuiz(cfg, o) {
       praise[idx] = pickOne(a === q.correct ? PRAISE_OK : PRAISE_BAD);
       combo = a === q.correct ? combo + 1 : 0;
       comboAt = COMBO_MARKS.includes(combo) ? idx : null;
+      // Новый личный рекорд — отмечаем один раз, в момент, когда его побили.
+      if (combo >= 5 && combo === bestComboBefore + 1) { comboAt = idx; comboRecordAt = idx; }
     }
     const [ticket, num] = o.ticketKey ? o.ticketKey(idx) : [null, null];
     // Машина реагирует только там, где правильность и так видна: на
@@ -990,7 +1221,12 @@ function runQuiz(cfg, o) {
       const st = currentStreak(cfg);
       if ($("tStreak")) $("tStreak").innerHTML = streakChip(st);
       setDrive(st);
-      if (lit) { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
+      if (lit) {
+        // Рубеж огонька (3, 7, 14… дней) — большой праздник и новая деталь машине.
+        const hit = M.milestone(st.current).hit;
+        if (hit) celebrateFinish({ kind: "perfect", title: `${st.current} ${daysWord(st.current)} подряд!`, sub: `Рубеж взят — машине ${hit.name}` });
+        else { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
+      }
     });
     const after = o.onAnswer ? o.onAnswer(idx, a, answers) : null;
     if (after?.stop) return showResult();
@@ -1025,6 +1261,10 @@ function runQuiz(cfg, o) {
     const allRight = questions.every((q, i) => answers[i] === q.correct);
     const party = r.celebrate ?? (allRight ? { kind: "perfect", sub: `Все ${questions.length} верно` } : null);
     if (party) setTimeout(() => celebrateFinish(party), 250);
+    // Значки — после праздника. Вошедшему сначала дождаться сохранения итога
+    // (факты придут в ответе) или освежить /api/me, если итог не сохраняется.
+    Promise.resolve(r.saved).then(() => (me && !r.saved ? loadMe().catch(() => {}) : null))
+      .then(() => setTimeout(() => checkBadges(cfg), party ? 3600 : 400));
     $("tStage").innerHTML = r.html;
     r.bind?.($("tStage"));
     startDials($("tStage").querySelector(".result"));
@@ -1128,9 +1368,10 @@ async function renderTicket(n) {
       const prevBest = currentSummary(cfg).tickets?.[n]?.best;
       const finishSub = prevBest === undefined ? `${correct} из 20 — билет ${n} пройден впервые`
         : correct > prevBest ? `Новый рекорд билета: ${correct} из 20 (было ${prevBest})` : `${correct} из 20`;
+      let saved = null;
       if (me) {
         resetRun(n);
-        apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum } }).then(applyServer).catch(e => console.error("Итог билета не сохранился:", e));
+        saved = apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum } }).then(applyServer).catch(e => console.error("Итог билета не сохранился:", e));
       } else finishGuestRun(n, correct, v.passed);
       const nextN = n % cfg.tickets + 1;
       return {
@@ -1148,6 +1389,7 @@ async function renderTicket(n) {
           ${mistakesList(questions, answers)}`,
         bind: el => el.querySelector("[data-again]").addEventListener("click", () => { resetRun(n); route(); }),
         celebrate: { kind: v.wrong === 0 ? "perfect" : v.passed ? "pass" : "fail", sub: finishSub },
+        saved,
       };
     },
   });
@@ -1214,8 +1456,9 @@ async function renderExam() {
       const answeredN = Object.keys(answers).length;
       const seconds = Math.round((Date.now() - started) / 1000);
       const items = questions.map((q, i) => i in answers ? { questionId: q.id, chosen: answers[i], block: q.block, extra: q.extra } : null).filter(Boolean);
-      if (me) apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout } }).then(applyServer).catch(e => console.error("Экзамен не сохранился:", e));
-      else recordGuestExam({ passed, reason, wrong });
+      let saved = null;
+      if (me) saved = apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout } }).then(applyServer).catch(e => console.error("Экзамен не сохранился:", e));
+      else recordGuestExam({ passed, reason, wrong, seconds });
       const mm = Math.floor(seconds / 60), ss = String(seconds % 60).padStart(2, "0");
       return {
         html: `
@@ -1234,6 +1477,7 @@ async function renderExam() {
           kind: !passed ? "fail" : wrong === 0 ? "perfect" : "pass",
           sub: passed ? `Экзамен сдан за ${mm}:${ss}${wrong ? " — с дополнительными вопросами" : ""}` : EXAM_REASON[reason].replace(" — на экзамене это «не сдал».", ""),
         },
+        saved,
       };
     },
   });

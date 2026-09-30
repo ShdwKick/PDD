@@ -181,5 +181,30 @@ const ago = k => addDays(today, -k);
   eq("кривое время отвергается", s.setRemind("r", "25:99"), null);
 }
 
+{ // факты для мотивации и расчёт по ним (assets/motivation.js)
+  const M = require("../assets/motivation.js");
+  const s = fresh();
+  withDays(s, "m", { [ago(2)]: 20, [ago(1)]: 20 });
+  answerN(s, "m", 25);                      // 25 верных подряд
+  answerN(s, "m", 1, { correct: false });    // и одна ошибка
+  const f = s.me("m", TZ).facts;
+  eq("факты: ответы и верные", [f.answers, f.correct], [26, 25]);
+  eq("факты: лучшая серия верных", f.bestCombo, 25);
+  eq("факты: огонёк", [f.streak.current, f.streak.best], [3, 3]);
+  eq("факты: сегодня в неделе", [f.days[today].n, f.days[today].ok, f.days[today].done], [26, 25, true]);
+  const got = M.badges(f).filter(b => b.got).map(b => b.id);
+  eq("значки: первый шаг, разогрев, двадцать подряд", ["first", "streak3", "combo20"].every(id => got.includes(id)), true);
+  eq("значки: экзамена не было — «Сдал!» нет", got.includes("exam1"), false);
+  const w = M.week(f);
+  eq("неделя: 3 дня, два прошлых — из переноса", [w.n, w.doneDays], [66, 3]);
+  eq("рубеж: 3 дня — полосы, следующий 7", [M.milestone(3).parts, M.milestone(3).next.at, M.milestone(3).hit.part], [["stripes"], 7, "stripes"]);
+  const r0 = M.readiness(f);
+  eq("готовность: без экзаменов не «готов», шаг — экзамен", [r0.ready, r0.steps.some(x => x.href === "/ekzamen")], [false, true]);
+  const full = { ...f, learned: f.total, exams: { ...f.exams, count: 3, passStreak: 3, recent: [{ passed: true }, { passed: true }, { passed: true }] } };
+  eq("готовность: всё выучено и 3 экзамена подряд — готов", [M.readiness(full).ready, M.readiness(full).pct], [true, 88]);
+  const feed = s.friendsFeed("x", ["m"]).m;
+  eq("лента: неделя и значки друга", [feed.week, feed.badges >= 3], [66, true]);
+}
+
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");
 process.exit(fails ? 1 : 0);

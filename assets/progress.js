@@ -16,7 +16,9 @@ const KEY = "bh-pdd-v1";
 const OUTBOX_KEY = "bh-pdd-outbox";
 export const Q_PER_TICKET = 20;
 
-function empty() { return { v: 1, q: {}, t: {}, days: {}, runs: {}, exams: [], plan: { kind: "daily", tickets: 1 } }; }
+// dok — верных за день (days — всех), rec — для рекордов и значков
+// (motivation.js): серия верных подряд, «ночной» и «ранний» ответ.
+function empty() { return { v: 1, q: {}, t: {}, days: {}, dok: {}, rec: { combo: 0, bestCombo: 0, night: false, early: false }, runs: {}, exams: [], plan: { kind: "daily", tickets: 1 } }; }
 
 function read() {
   try {
@@ -99,6 +101,12 @@ export function recordGuestAnswer(ticket, num, question, chosen, total) {
   const day = today();
   const before = d.days[day] || 0;
   d.days[day] = before + 1;
+  if (ok) d.dok[day] = (d.dok[day] || 0) + 1;
+  const rec = d.rec;
+  rec.combo = ok ? rec.combo + 1 : 0;
+  rec.bestCombo = Math.max(rec.bestCombo, rec.combo);
+  const h = new Date().getHours();
+  if (h >= 23 || h < 5) rec.night = true; else if (h < 7) rec.early = true;
 
   // Незаконченный билет — только в режиме билета (ticket не null). Экзамен,
   // ошибки и темы в runs не пишут.
@@ -161,7 +169,16 @@ export function guestQState() {
 /** Экзамен гостя — хранятся последние 20 итогов. */
 export function recordGuestExam(result) {
   const d = read();
-  d.exams = [...(d.exams || []), { at: Date.now(), passed: !!result.passed, reason: result.reason || null, wrong: result.wrong | 0 }].slice(-20);
+  d.exams = [...(d.exams || []), { at: Date.now(), passed: !!result.passed, reason: result.reason || null, wrong: result.wrong | 0, seconds: result.seconds | 0 }].slice(-20);
+  // Счётчики — отдельно: список хранит только последние 20.
+  d.examStats = d.examStats || { count: 0, passed: 0, perfect: 0, fastest: null };
+  const es = d.examStats;
+  es.count++;
+  if (result.passed) {
+    es.passed++;
+    if (!result.wrong) es.perfect++;
+    if (result.seconds > 0) es.fastest = es.fastest === null ? result.seconds : Math.min(es.fastest, result.seconds);
+  }
   write(d);
 }
 
@@ -184,6 +201,47 @@ export function guestStreak(total) {
   return { current, best, todayCount, todayDone, target, freezes: null, nextFreezeIn: null };
 }
 
+/** Факты для мотивации — та же форма, что facts() в lib/store.js. */
+export function guestFacts(total) {
+  const d = read();
+  const qs = Object.values(d.q);
+  const st = guestStreak(total);
+  const tickets = Object.values(d.t);
+  const exams = d.exams || [];
+  const es = d.examStats || {
+    count: exams.length, passed: exams.filter(e => e.passed).length,
+    perfect: exams.filter(e => e.passed && !e.wrong).length, fastest: null,
+  };
+  let passStreak = 0;
+  for (let i = exams.length - 1; i >= 0 && exams[i].passed; i--) passStreak++;
+  const todayKey = today();
+  const days = {};
+  for (let i = 0; i < 14; i++) {
+    const key = shiftDay(todayKey, -i), n = d.days[key] || 0;
+    if (n) days[key] = { n, ok: (d.dok || {})[key] || 0, done: n >= st.target };
+  }
+  const rec = { bestCombo: 0, night: false, early: false, ...(d.rec || {}) };
+  return {
+    total,
+    learned: qs.filter(s => s.last === 1).length,
+    mistakes: qs.filter(isMistake).length,
+    seen: qs.length,
+    answers: qs.reduce((a, s) => a + s.n, 0),
+    correct: qs.reduce((a, s) => a + s.ok, 0),
+    tickets: {
+      done: tickets.length,
+      passedEver: tickets.filter(t => t.everPassed).length,
+      perfect: tickets.filter(t => t.best === 20).length,
+    },
+    exams: { ...es, passStreak, recent: exams.slice(-10).map(e => ({ passed: !!e.passed })) },
+    streak: { current: st.current, best: st.best, frozen: 0 },
+    days, today: todayKey,
+    bestCombo: rec.bestCombo,
+    maxDay: Math.max(0, ...Object.values(d.days)),
+    night: rec.night, early: rec.early,
+  };
+}
+
 /* ---------- перенос гостя на сервер ---------- */
 
 export function hasGuestStats() {
@@ -198,7 +256,7 @@ export function exportGuest() {
  * аккаунта человек увидел бы старый гостевой прогресс вместо пустого. */
 export function clearGuestStats() {
   const d = read();
-  d.q = {}; d.t = {}; d.days = {};
+  d.q = {}; d.t = {}; d.days = {}; d.dok = {}; d.rec = empty().rec; d.exams = []; delete d.examStats;
   write(d);
 }
 
