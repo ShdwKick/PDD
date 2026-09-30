@@ -9,7 +9,7 @@
  * currentStreak() / currentPlan(), а за ними уже решено, откуда данные.
  */
 import {
-  getRun, setRunAnswer, resetRun, localRuns, getLocalPlan, setLocalPlan, targetFor,
+  getRun, setRunAnswer, resetRun, localRuns, getLocalPlan, setLocalPlan, targetFor, getLocalCar, setLocalCar,
   recordGuestAnswer, finishGuestRun, guestSummary, guestStreak,
   hasGuestStats, exportGuest, clearGuestStats, outbox, outboxPush, outboxDrop, plural,
   guestQState, recordGuestExam, guestFacts,
@@ -368,15 +368,17 @@ function flameState(st) {
  * медленно, горит — крейсерская. */
 function setDrive(st) {
   $("backdrop").dataset.drive = flameState(st);
-  applyCarParts(st);
+  applyCar($("car"), currentCar(st));
 }
 
-/** Тюнинг машины — по текущей серии (M.MILESTONES): полосы, спойлер,
- * подсветка, цвет. Погас огонёк — машина снова без деталей. */
-function applyCarParts(st) {
-  const car = $("car");
-  const parts = new Set(M.milestone(st.current || 0).parts);
-  for (const m of M.MILESTONES) car.classList.toggle(`up-${m.part}`, parts.has(m.part));
+/* Машина из гаража: что человек выбрал сам (вошедший — /api/me, гость —
+   localStorage), открытое по лучшей серии; остальное — по умолчанию
+   (M.carConfig). Вид — классами car-<категория>-<вариант>, см. styles.css. */
+const savedCar = () => (me ? me.car : getLocalCar()) || null;
+const currentCar = st => M.carConfig(savedCar(), st?.best || 0);
+function applyCar(el, car) {
+  for (const c of [...el.classList]) if (c.startsWith("car-") && c !== "car-plate") el.classList.remove(c);
+  for (const [k, v] of Object.entries(car)) el.classList.add(`car-${k}-${v}`);
 }
 
 /** Реакция машины на ответ: ok — газует, bad — тормозит и заносит,
@@ -504,8 +506,10 @@ function streakFooter(st, plan) {
       <button type="button" class="btn-mini" data-login>Войти</button></span>`;
   }
   const ms = M.milestone(st.current || 0);
-  const rubezh = ms.next ? `<div class="rubezh" title="Детали держатся, пока горит огонёк">
-      <span>Рубеж <b>${ms.next.at} ${daysWord(ms.next.at)}</b> — ${esc(ms.next.flame)} и ${esc(ms.next.name)}${st.current ? ` · ещё ${ms.left} ${daysWord(ms.left)}` : ""}</span>
+  // Новинки гаража — только если рубеж выше лучшей серии: открытое не открывается дважды.
+  const fresh = ms.next && ms.next.at > (st.best || 0) ? M.unlocksAt(ms.next.at).length : 0;
+  const rubezh = ms.next ? `<div class="rubezh">
+      <span>Рубеж <b>${ms.next.at} ${daysWord(ms.next.at)}</b> — ${esc(ms.next.flame)}${fresh ? ` и ${fresh} ${plural(fresh, "новинка", "новинки", "новинок")} в гараже` : ""}${st.current ? ` · ещё ${ms.left} ${daysWord(ms.left)}` : ""}<a class="rubezh-link" href="/garazh" data-link>Гараж</a></span>
       <i class="rubezh-bar" style="--p:${(ms.progress * 100).toFixed(0)}%"></i>
     </div>` : "";
   return `<div class="streak-foot">
@@ -632,6 +636,7 @@ function route() {
   if (p === "/oshibki") return renderMistakes();
   if (p === "/temy") return renderTopics();
   if (p === "/znachki") return renderBadges();
+  if (p === "/garazh") return renderGarage();
   const mini = /^\/mini\/(\d{1,2})$/.exec(p);
   if (mini && Number(mini[1]) >= 5 && Number(mini[1]) <= 20) return renderMini(Number(mini[1]));
   const t = /^\/tema\/(\d{1,2})$/.exec(p);
@@ -1099,12 +1104,91 @@ async function renderBadges() {
     <ul class="badge-grid">
       ${all.map(b => `<li class="badge-cell ${b.got ? "got" : ""}">${medal(b)}<b>${esc(b.title)}</b><span>${esc(b.desc)}</span>${b.got ? "" : `<i class="bs-bar" style="--p:${(b.progress * 100).toFixed(0)}%"></i>`}</li>`).join("")}
     </ul>
-    <h2 class="section-title">Рубежи огонька</h2>
-    <p class="tuning-note">Каждый рубеж меняет огонёк и добавляет машине деталь. Всё это держится, пока горит серия: пропустили день без заморозки — огонёк и машина начинают сначала.</p>
+    <h2 class="section-title with-link">Рубежи огонька<a href="/garazh" data-link>В гараж</a></h2>
+    <p class="tuning-note">Рубеж меняет огонёк — он держится, пока горит серия. А ещё открывает в гараже цвета и детали для машины: они остаются навсегда, и что из них надеть, вы выбираете сами.</p>
     <ul class="tuning">
-      ${M.MILESTONES.map(m => `<li class="${f.streak.current >= m.at ? "on" : ""}">${flameSvg("lit", "", m.at)}<span class="tn-text"><b>${m.at} ${daysWord(m.at)}</b><span>${esc(m.flame)}</span><span>машине — ${esc(m.name)}</span></span></li>`).join("")}
+      ${M.MILESTONES.map(m => `<li class="${f.streak.best >= m.at ? "on" : ""}">${flameSvg("lit", "", m.at)}<span class="tn-text"><b>${m.at} ${daysWord(m.at)}</b><span>${esc(m.flame)}</span><span>в гараже — ${esc(M.unlocksAt(m.at).join(", "))}</span></span></li>`).join("")}
     </ul>`;
   checkBadges(cfg);
+}
+
+/* ---------- гараж ----------
+   Предпросмотр — копия машины с фона (index.html), только у копии свои id
+   градиентов: иначе url(#carBody) в копии брал бы цвета машины на фоне. */
+
+const lockIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+// Образцы цвета для кнопок — те же, что в styles.css у car-paint-*/stripes/glow.
+const SWATCH = {
+  paint: { blue: "#2f6fd6", white: "#e9edf2", black: "#1c2026", green: "#0f8a5f", red: "#d42a20", silver: "#aab4bf", gold: "#d9a900" },
+  stripes: { none: null, white: "#f4f6f8", black: "#111418", red: "#e0241b", gold: "#f2cf4a" },
+  glow: { none: null, blue: "#3aa0ff", red: "#ff3b30", purple: "#b43cff" },
+};
+
+async function renderGarage() {
+  document.title = `Гараж — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (me) { try { await loadMe(); } catch {} }
+  if (!stillOn("/garazh")) return;
+  const st = currentStreak(cfg);
+  setDrive(st);
+  const best = st.best || 0;
+  const total = M.CAR.reduce((a, c) => a + c.items.length, 0);
+  const open = M.CAR.reduce((a, c) => a + c.items.filter(it => best >= it.at).length, 0);
+  const preview = $("car").querySelector("svg").outerHTML
+    .replace(/id="(\w+)"/g, 'id="g$1"').replace(/url\(#(\w+)\)/g, "url(#g$1)");
+
+  view.innerHTML = `
+    <div class="ex-header">
+      <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
+      <div class="titles"><h1>Гараж</h1><p class="sub">Открыто ${open} из ${total} · лучшая серия ${best} ${daysWord(best)}</p></div>
+    </div>
+    <div class="garage-stage">
+      <div class="car garage-car" id="gCar">${preview}</div>
+    </div>
+    <p class="tuning-note">Цвета и детали открываются рубежами огонька и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
+    ${M.CAR.map(c => `
+      <h2 class="section-title">${esc(c.name)}</h2>
+      <div class="garage-opts" data-cat="${c.id}">
+        ${c.items.map(it => {
+          const locked = best < it.at;
+          const sw = SWATCH[c.id]?.[it.id];
+          return `<button type="button" class="g-opt" data-cat="${c.id}" data-id="${it.id}" ${locked ? "disabled" : ""}
+            aria-label="${esc(it.name)}${locked ? `, откроется за ${it.at} ${daysWord(it.at)} подряд` : ""}">
+            ${sw !== undefined ? `<i class="g-swatch ${sw ? "" : "none"}" style="${sw ? `--sw:${sw}` : ""}"></i>` : ""}
+            <span class="g-name">${esc(it.name)}</span>
+            ${locked ? `<span class="g-lock">${lockIcon}${it.at} ${daysWord(it.at)}</span>` : ""}
+          </button>`;
+        }).join("")}
+      </div>`).join("")}
+  `;
+
+  const paint = () => {
+    const car = currentCar(st);
+    applyCar($("gCar"), car);
+    applyCar($("car"), car);
+    for (const b of view.querySelectorAll(".g-opt")) b.classList.toggle("on", car[b.dataset.cat] === b.dataset.id);
+  };
+  paint();
+
+  view.querySelector(".garage-stage").addEventListener("click", () => {
+    const g = $("gCar"); g.classList.remove("lit"); void g.offsetWidth; g.classList.add("lit");
+  });
+  for (const b of view.querySelectorAll(".g-opt:not([disabled])")) {
+    b.addEventListener("click", async () => {
+      const choice = { [b.dataset.cat]: b.dataset.id };
+      // Сразу у себя (и на случай без сети — в localStorage), потом на сервер.
+      setLocalCar(choice);
+      if (me) {
+        me.car = { ...(me.car || {}), ...choice };
+        setMe(me);
+        apiJson("/api/me/car", { method: "PUT", body: { car: choice } })
+          .then(r => { me.car = r.car; setMe(me); })
+          .catch(e => console.error("Выбор машины не сохранился:", e));
+      }
+      paint();
+      const g = $("gCar"); g.classList.remove("lit"); void g.offsetWidth; g.classList.add("lit");
+    });
+  }
 }
 
 /* ---------- решатель ----------
@@ -1257,7 +1341,12 @@ function runQuiz(cfg, o) {
       if (lit) {
         // Рубеж огонька (3, 7, 14… дней) — большой праздник и новая деталь машине.
         const hit = M.milestone(st.current).hit;
-        if (hit) celebrateFinish({ kind: "perfect", streak: st.current, title: `${st.current} ${daysWord(st.current)} подряд!`, sub: `Новый огонёк — ${hit.flame}, машине — ${hit.name}` });
+        if (hit) {
+          // Гараж пополняется, только если серия — новый рекорд (st.best уже с сегодняшним днём).
+          const garage = st.current >= st.best ? M.unlocksAt(hit.at) : [];
+          celebrateFinish({ kind: "perfect", streak: st.current, title: `${st.current} ${daysWord(st.current)} подряд!`,
+            sub: `Новый огонёк — ${hit.flame}${garage.length ? `. В гараже: ${garage.join(", ")}` : ""}` });
+        }
         else { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
       }
     });

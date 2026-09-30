@@ -102,20 +102,91 @@
     });
   }
 
-  /* ---------- рубежи огонька и тюнинг машины ----------
-     Детали держатся, пока горит серия: погас огонёк — машина снова «стоковая».
-     Это и есть смысл: есть что терять. */
+  /* ---------- рубежи огонька и гараж ----------
+     Рубеж (3/7/14/30/50/100 дней текущей серии) меняет огонёк — он держится,
+     пока горит серия, — и открывает в гараже детали и цвета. Открытое в
+     гараже остаётся навсегда (по лучшей серии), а что надеть на машину,
+     выбирает сам человек: цвет кузова сам не меняется. */
   // flame — как выглядит огонёк с этого рубежа (как в TikTok: серия растёт —
   // пламя становится больше, потом меняет цвет). Уровень пламени = номер
   // рубежа, см. flameTier(); вёрстка уровней — flameSvg() в app.js.
   const MILESTONES = [
-    { at: 3, part: "stripes", name: "гоночные полосы", flame: "пламя разгорается" },
-    { at: 7, part: "spoiler", name: "спойлер", flame: "двойное пламя" },
-    { at: 14, part: "glow", name: "неоновая подсветка", flame: "раскалённое ядро" },
-    { at: 30, part: "red", name: "красный кузов", flame: "синее пламя" },
-    { at: 50, part: "fire", name: "пламя из выхлопа", flame: "сияющее синее пламя" },
-    { at: 100, part: "gold", name: "золотой кузов", flame: "легендарное пламя" },
+    { at: 3, flame: "пламя разгорается" },
+    { at: 7, flame: "двойное пламя" },
+    { at: 14, flame: "раскалённое ядро" },
+    { at: 30, flame: "синее пламя" },
+    { at: 50, flame: "сияющее синее пламя" },
+    { at: 100, flame: "легендарное пламя" },
   ];
+
+  /* Гараж: категории и варианты. at — с какой лучшей серии открывается;
+     первый вариант каждой категории — «как с завода». Цвета — в styles.css
+     (классы car-<категория>-<вариант>). */
+  const CAR = [
+    { id: "paint", name: "Кузов", items: [
+      { id: "blue", name: "Синий", at: 0 },
+      { id: "white", name: "Белый", full: "белый кузов", at: 3 },
+      { id: "black", name: "Чёрный", full: "чёрный кузов", at: 7 },
+      { id: "green", name: "Изумрудный", full: "изумрудный кузов", at: 14 },
+      { id: "red", name: "Красный", full: "красный кузов", at: 30 },
+      { id: "silver", name: "Серебро", full: "серебристый кузов", at: 50 },
+      { id: "gold", name: "Золото", full: "золотой кузов", at: 100 },
+    ] },
+    { id: "stripes", name: "Полосы", items: [
+      { id: "none", name: "Без полос", at: 0 },
+      { id: "white", name: "Белые", full: "гоночные полосы", at: 3 },
+      { id: "black", name: "Чёрные", full: "чёрные полосы", at: 7 },
+      { id: "red", name: "Красные", full: "красные полосы", at: 30 },
+      { id: "gold", name: "Золотые", full: "золотые полосы", at: 100 },
+    ] },
+    { id: "spoiler", name: "Спойлер", items: [
+      { id: "none", name: "Без спойлера", at: 0 },
+      { id: "on", name: "Спойлер", full: "спойлер", at: 7 },
+    ] },
+    { id: "glow", name: "Подсветка", items: [
+      { id: "none", name: "Без подсветки", at: 0 },
+      { id: "blue", name: "Синяя", full: "синяя подсветка", at: 14 },
+      { id: "red", name: "Красная", full: "красная подсветка", at: 30 },
+      { id: "purple", name: "Фиолетовая", full: "фиолетовая подсветка", at: 50 },
+    ] },
+    { id: "exhaust", name: "Выхлоп", items: [
+      { id: "none", name: "Обычный", at: 0 },
+      { id: "fire", name: "Пламя", full: "пламя из выхлопа", at: 50 },
+    ] },
+  ];
+
+  /** Что открывает рубеж — для праздника и строки «следующий рубеж». */
+  function unlocksAt(at) {
+    const out = [];
+    for (const c of CAR) for (const it of c.items) if (it.at === at) out.push(it.full);
+    return out;
+  }
+
+  /** Итоговая машина: выбранное, если открыто; иначе — по умолчанию.
+   * По умолчанию кузов — синий, а детали — первая открытая (как было раньше:
+   * взял рубеж — деталь появилась). Цвет сам не меняется никогда. */
+  function carConfig(saved, best) {
+    const cfg = {};
+    for (const c of CAR) {
+      const open = c.items.filter(it => (best || 0) >= it.at);
+      const want = saved && open.find(it => it.id === saved[c.id]);
+      cfg[c.id] = want ? want.id : c.id === "paint" ? "blue" : (open[1] || open[0]).id;
+    }
+    return cfg;
+  }
+
+  /** Проверка выбора с клиента: только известные категории и открытые варианты. */
+  function validCar(raw, best) {
+    if (!raw || typeof raw !== "object") return null;
+    const out = {};
+    for (const c of CAR) {
+      if (!(c.id in raw)) continue;
+      const it = c.items.find(x => x.id === raw[c.id]);
+      if (!it || (best || 0) < it.at) return null;
+      out[c.id] = it.id;
+    }
+    return out;
+  }
 
   /** Уровень огонька 0..6 — сколько рубежей взято текущей серией. */
   const flameTier = current => MILESTONES.filter(m => (current || 0) >= m.at).length;
@@ -125,7 +196,6 @@
     const next = MILESTONES.find(m => current < m.at) || null;
     const prevAt = reached.length ? reached[reached.length - 1].at : 0;
     return {
-      parts: reached.map(m => m.part),
       next,
       left: next ? next.at - current : 0,
       progress: next ? clamp01((current - prevAt) / (next.at - prevAt)) : 1,
@@ -173,7 +243,7 @@
     };
   }
 
-  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, week, records };
+  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, week, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -197,13 +197,27 @@ const ago = k => addDays(today, -k);
   eq("значки: экзамена не было — «Сдал!» нет", got.includes("exam1"), false);
   const w = M.week(f);
   eq("неделя: 3 дня, два прошлых — из переноса", [w.n, w.doneDays], [66, 3]);
-  eq("рубеж: 3 дня — полосы, следующий 7", [M.milestone(3).parts, M.milestone(3).next.at, M.milestone(3).hit.part], [["stripes"], 7, "stripes"]);
+  eq("рубеж: 3 дня взят, следующий 7, в гараже — белый кузов и полосы", [M.milestone(3).hit.at, M.milestone(3).next.at, M.unlocksAt(3)], [3, 7, ["белый кузов", "гоночные полосы"]]);
   const r0 = M.readiness(f);
   eq("готовность: без экзаменов не «готов», шаг — экзамен", [r0.ready, r0.steps.some(x => x.href === "/ekzamen")], [false, true]);
   const full = { ...f, learned: f.total, exams: { ...f.exams, count: 3, passStreak: 3, recent: [{ passed: true }, { passed: true }, { passed: true }] } };
   eq("готовность: всё выучено и 3 экзамена подряд — готов", [M.readiness(full).ready, M.readiness(full).pct], [true, 88]);
   const feed = s.friendsFeed("x", ["m"]).m;
   eq("лента: неделя и значки друга", [feed.week, feed.badges >= 3], [66, true]);
+}
+
+{ // гараж: выбор машины только из открытого по лучшей серии
+  const M = require("../assets/motivation.js");
+  const s = fresh();
+  withDays(s, "g", { [ago(3)]: 20, [ago(2)]: 20, [ago(1)]: 20 });
+  const m = s.me("g", TZ);
+  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none" });
+  eq("открытый белый кузов — можно", s.setCar("g", { paint: "white" }), { car: { paint: "white" } });
+  eq("красный (30 дней) — ещё закрыт", s.setCar("g", { paint: "red" }), null);
+  eq("мусор — нет", s.setCar("g", { paint: "pink" }), null);
+  s.setCar("g", { stripes: "none" });
+  eq("выбор дописывается и приходит в /api/me", s.me("g", TZ).car, { paint: "white", stripes: "none" });
+  eq("снятые полосы остаются снятыми", M.carConfig(s.me("g", TZ).car, 3).stripes, "none");
 }
 
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");

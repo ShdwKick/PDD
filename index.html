@@ -57,12 +57,12 @@
         <stop offset="1" stop-color="var(--car-dark)"/>
       </linearGradient>
       <radialGradient id="underGlow">
-        <stop offset="0" stop-color="#3aa0ff" stop-opacity=".85"/>
-        <stop offset="1" stop-color="#3aa0ff" stop-opacity="0"/>
+        <stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/>
+        <stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/>
       </radialGradient>
     </defs>
-    <!-- Тюнинг за рубежи огонька (assets/motivation.js, MILESTONES): детали
-         включаются классами up-* на .car, пока горит серия. -->
+    <!-- Гараж (assets/motivation.js, CAR): детали и цвета включаются
+         классами car-<категория>-<вариант> на .car (applyCar в app.js). -->
     <ellipse class="part p-glow" cx="80" cy="141" rx="84" ry="12" fill="url(#underGlow)"/>
     <ellipse class="car-shadow" cx="80" cy="145" rx="74" ry="6"/>
     <rect class="tyre" x="15" y="116" width="22" height="28" rx="5"/>

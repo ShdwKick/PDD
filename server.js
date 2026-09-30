@@ -186,6 +186,9 @@ function routeSeo(rel) {
     const t = TOPICS[Number(tt[1])];
     return { title: `${t.name} — вопросы ПДД по теме — ${SERVICE_NAME}`, description: `Вопросы билетов ПДД по теме «${t.name}»: ${t.ids.length} вопросов с ответами и пояснениями.` };
   }
+  if (rel === "garazh") {
+    return { title: `Гараж — ${SERVICE_NAME}`, description: "Цвета и детали для машины за рубежи огонька: 3, 7, 14, 30, 50 и 100 дней подготовки к экзамену ПДД подряд.", noindex: true };
+  }
   if (rel === "znachki") {
     // Личная страница: у каждого свои значки — искать тут нечего.
     return { title: `Значки и рекорды — ${SERVICE_NAME}`, description: "Значки за подготовку к экзамену ПДД, личные рекорды и тюнинг машины за огонёк.", noindex: true };
@@ -346,6 +349,10 @@ async function handleApi(req, res, pathname) {
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_ticket" });
   }
 
+  if (pathname === "/api/me/car" && method === "PUT") {
+    const r = store.setCar(user.id, (await readJson(req)).car);
+    return r ? json(res, 200, r) : json(res, 400, { error: "bad_car" });
+  }
   if (pathname === "/api/me/settings" && method === "PUT") {
     const b = await readJson(req);
     const r = store.setRemind(user.id, b.remindAt === null ? null : String(b.remindAt || ""));

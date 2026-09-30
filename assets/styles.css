@@ -783,21 +783,55 @@ a.lamp:hover{filter:brightness(1.1)}
    зелёный — прогресс и «получено», жёлтый — цель. Медали — хромовые ободки,
    как у приборов. */
 
-/* ---- тюнинг машины за рубежи огонька ---- */
+/* ---- машина из гаража (motivation.js CAR, applyCar в app.js) ---- */
 .car .part{display:none}
-.car.up-stripes .p-stripes,.car.up-spoiler .p-spoiler,.car.up-glow .p-glow,.car.up-fire .p-fire{display:inline}
-.car .p-stripes rect{fill:#f4f6f8;opacity:.92}
+.car.car-stripes-white .p-stripes,.car.car-stripes-black .p-stripes,.car.car-stripes-red .p-stripes,.car.car-stripes-gold .p-stripes,
+.car.car-spoiler-on .p-spoiler,
+.car.car-glow-blue .p-glow,.car.car-glow-red .p-glow,.car.car-glow-purple .p-glow,
+.car.car-exhaust-fire .p-fire{display:inline}
+.car .p-stripes rect{fill:var(--stripe,#f4f6f8);opacity:.92}
+.car.car-stripes-black{--stripe:#111418}
+.car.car-stripes-red{--stripe:#e0241b}
+.car.car-stripes-gold{--stripe:#f2cf4a}
 .car .sp-wing{fill:var(--car-dark)}
 .car .sp-leg{fill:#171b22}
+.car.car-glow-red{--glow:#ff3b30}
+.car.car-glow-purple{--glow:#b43cff}
 .car .p-glow{animation:glow-pulse 2.4s ease-in-out infinite alternate}
-.car.up-glow .car-shadow{opacity:.12}
+.car:not(.car-glow-none) .car-shadow{opacity:.12}
 @keyframes glow-pulse{from{opacity:.55}to{opacity:1}}
 .car .exhaust{fill:#ffcc00;opacity:.0;transform-box:fill-box;transform-origin:50% 0}
-.car.up-fire .exhaust{opacity:.7;animation:exhaust .18s steps(2,end) infinite}
-.car.up-fire.ok .exhaust{opacity:1;animation-duration:.1s}
+.car.car-exhaust-fire .exhaust{opacity:.7;animation:exhaust .18s steps(2,end) infinite}
+.car.car-exhaust-fire.ok .exhaust{opacity:1;animation-duration:.1s}
 @keyframes exhaust{50%{transform:scaleY(.6)}}
-.car.up-red{--car-body:#d42a20;--car-dark:#8e1810;--car-light:#ef5a4f}
-.car.up-gold{--car-body:#d9a900;--car-dark:#8a6a00;--car-light:#f2cf4a}
+.car.car-paint-white{--car-body:#e9edf2;--car-dark:#aeb8c4;--car-light:#ffffff}
+.car.car-paint-black{--car-body:#1c2026;--car-dark:#0b0d10;--car-light:#3a414b}
+.car.car-paint-green{--car-body:#0f8a5f;--car-dark:#08573c;--car-light:#35b986}
+.car.car-paint-red{--car-body:#d42a20;--car-dark:#8e1810;--car-light:#ef5a4f}
+.car.car-paint-silver{--car-body:#aab4bf;--car-dark:#6f7b88;--car-light:#d8dee5}
+.car.car-paint-gold{--car-body:#d9a900;--car-dark:#8a6a00;--car-light:#f2cf4a}
+
+/* ---- гараж ---- */
+.garage-stage{position:relative;display:grid;place-items:center;height:230px;margin-top:4px;border-radius:18px;overflow:hidden;cursor:pointer;
+  background:radial-gradient(80% 70% at 50% 100%,#1b2740,#0a0f17 70%);border:1px solid var(--dash-edge)}
+.garage-stage::after{content:"";position:absolute;left:10%;right:10%;bottom:26px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)}
+.car.garage-car{position:relative;left:auto;bottom:auto;transform:none;width:230px;z-index:0}
+.car.garage-car:not(.lit) svg{animation:none}
+.garage-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--el-edge);background:var(--el);color:var(--text);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:border-color .15s,transform .12s}
+.g-opt:hover:not(:disabled){border-color:var(--text-2)}
+.g-opt:active:not(:disabled){transform:scale(.98)}
+.g-opt:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.g-opt.on{border-color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok)}
+.g-opt:disabled{cursor:default;color:var(--text-2);opacity:.7}
+.g-swatch{width:18px;height:18px;border-radius:50%;background:var(--sw);border:1px solid rgba(0,0,0,.25);box-shadow:inset 0 1px 2px rgba(255,255,255,.3)}
+.g-swatch.none{background:transparent;border:1.5px dashed var(--text-2);box-shadow:none}
+.g-lock{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--text-2)}
+.g-lock svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2}
+.rubezh-link{margin-left:8px;font-weight:600;color:var(--text);text-decoration:none;white-space:nowrap}
+.rubezh-link::after{content:" →"}
+.rubezh-link:hover{text-decoration:underline}
 
 /* ---- рубеж огонька под пламенем ---- */
 .rubezh{display:flex;flex-direction:column;gap:5px}
@@ -909,7 +943,7 @@ a.lamp:hover{filter:brightness(1.1)}
   .ready-pct{font-size:24px}
 }
 @media (prefers-reduced-motion: reduce){
-  .car .p-glow,.car.up-fire .exhaust,.medal.pop{animation:none!important}
+  .car .p-glow,.car.car-exhaust-fire .exhaust,.medal.pop{animation:none!important}
 }
 
 /* ---- уровни огонька (flameSvg в app.js, как серия в TikTok) ----

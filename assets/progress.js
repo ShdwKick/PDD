@@ -69,6 +69,13 @@ export function localRuns() {
 /* ---------- план ---------- */
 
 export function getLocalPlan() { return read().plan; }
+
+/* ---------- гараж ---------- */
+
+/** Выбор машины (motivation.js CAR) — и у гостя, и как запасной у вошедшего
+ * без сети. null — ничего не выбирал, машина по умолчанию. */
+export function getLocalCar() { return read().car || null; }
+export function setLocalCar(car) { const d = read(); d.car = { ...(d.car || {}), ...car }; write(d); }
 export function setLocalPlan(plan) { const d = read(); d.plan = plan; write(d); }
 
 /** Норма на сегодня в вопросах — та же формула, что targetFor() на сервере. */
