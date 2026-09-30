@@ -1034,5 +1034,5 @@ a.lamp:hover{filter:brightness(1.1)}
 .acc-logout{width:100%;margin-top:12px;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--el-edge))}
 @media (prefers-reduced-motion: reduce){ .acc-backdrop,.acc-modal{animation:none!important} }
 
-/* Подпись под машиной в гараже — во всю ширину сцены, выровнена по ширине. */
-.garage-note{max-width:none;margin-top:10px;text-align:justify;-webkit-hyphens:auto;hyphens:auto}
+/* Подпись под машиной в гараже — во всю ширину сцены, по центру. */
+.garage-note{max-width:none;margin-top:10px;text-align:center}
