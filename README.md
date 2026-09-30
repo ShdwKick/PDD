@@ -6,11 +6,16 @@
 ## Запуск
 
 ```bash
-node server.js          # http://localhost:8798
+node dev.mjs            # auth (8792) + сервис (8798), аккаунты dev и anya (друзья), пароль dev-parol-2026
+node dev.mjs --reset    # то же с чистыми данными
+node server.js          # только сервис — вход будет смотреть на auth.burninghouse.ru
+node test/store.test.mjs          # логика огонька, заморозок, планов, друзей
+node test/webpush.test.mjs        # шифрование push (сверка с эталоном RFC 8291)
+node test/webpush-send.test.mjs   # отправка push на фальшивый push-сервис
 ```
 
-Зависимостей нет. Из корня BurningHouse то же самое поднимает превью `pdd`
-в `.claude/launch.json`.
+Зависимостей нет. Превью `pdd` в корневом `.claude/launch.json` запускает
+только сервис, без входа.
 
 ## Билеты
 
@@ -36,7 +41,15 @@ node tools/import.mjs <sha>      # конкретный — воспроизво
 2. Сертификат: `certbot certonly --nginx -d pdd.burninghouse.ru`.
 3. `deploy/nginx-pdd-443.conf` → `/etc/nginx/sites-available/pdd`, ссылка в
    `sites-enabled`, `nginx -t && systemctl reload nginx`.
-4. `docker compose -f docker-compose.prod.yml up -d`.
+4. Регистрация в auth (один раз): `docker compose exec auth node server.js client-add pdd "Когда на права?" https://pdd.burninghouse.ru/`.
+5. Ключ для вечерних напоминаний — тот же `ADMIN_INTERNAL_KEY`, что у Admin,
+   в `.env` рядом с compose. Без него напоминания выключены.
+6. `docker compose -f docker-compose.prod.yml up -d`.
 
-Переменные: `INDEXABLE=1` пускает поисковики (пока `0` — пояснения к ответам
-не свои), `SHOW_TIPS=0` прячет пояснения совсем.
+Уведомления на устройство (Web Push): ключи VAPID создаются сами при первом
+запуске в `data/vapid.json` (volume — переживают обновления образа). Можно
+задать `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` явно. Сменить ключи = отписать
+всех: браузеры подписаны на старый публичный ключ.
+
+Переменные: `INDEXABLE=1` пускает поисковики (в prod включено: пояснения свои,
+`robots.txt` и `sitemap.xml` собираются сервером), `SHOW_TIPS=0` прячет пояснения совсем.

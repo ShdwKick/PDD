@@ -9,6 +9,9 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8798
+      # Локальный auth — проще всего node dev.mjs, он поднимет всё сам.
+      AUTH_ISSUER: http://localhost:8792
+      AUTH_CLIENT_ID: pdd
     ports:
       # Только localhost — наружу отдаёт nginx.
       - "127.0.0.1:8798:8798"

@@ -327,14 +327,15 @@ a{color:inherit}
 /* ---- блок на приборке ---- */
 .streak{
   display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;
-  max-width:560px;margin:0 auto 12px;padding:4px 10px 14px;border-bottom:1px solid var(--dash-edge);
+  margin:0 0 12px;padding:4px 10px 14px;border-bottom:1px solid var(--dash-edge);
 }
 .flame.big{width:54px;height:54px}
 .streak-title{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:21px;line-height:1.1;color:var(--ink)}
 .streak-hint{margin-top:3px;font-size:13px;line-height:1.35;color:var(--text-2)}
 /* «Бак» нормы на сегодня — сегменты, как у указателя топлива. */
 .fuel{display:flex;align-items:center;gap:3px;margin-top:8px}
-.fuel i{flex:1 1 0;min-width:0;max-width:16px;height:8px;border-radius:1.5px;background:var(--el-edge);transform:skewX(-14deg)}
+/* Бак растянут на всю ширину блока — без пустоты справа. */
+.fuel i{flex:1 1 0;min-width:0;height:8px;border-radius:1.5px;background:var(--el-edge);transform:skewX(-14deg)}
 .fuel i.on{background:var(--ink)}
 .streak[data-state="lit"] .fuel i.on{background:var(--ok)}
 .fuel span{flex:none;margin-left:6px;font-family:var(--font-dash);font-weight:700;font-size:12px;color:var(--text-2)}
@@ -407,3 +408,372 @@ a{color:inherit}
   .flame[data-state="lit"] .inner,.flame.igniting .inner{transform:scale(.52)}
   .odo-roll{animation:none;transform:translateY(-1.2em)}
 }
+
+/* ---- под огоньком: план и заморозки ---- */
+.is-hidden{display:none!important}
+.streak-foot{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;font-size:12.5px;color:var(--text-2)}
+.plan-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.plan-name b{color:var(--text);font-weight:600}
+.foot-extra{display:flex;align-items:center;gap:10px}
+/* Маленькая кнопка на приборке: «Настроить план», «Войти». */
+.btn-mini{
+  display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:6px;
+  font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:13.5px;white-space:nowrap;
+  color:var(--text);background:var(--el);border:1px solid var(--el-edge);text-decoration:none;cursor:pointer;
+  transition:border-color .15s;
+}
+.btn-mini:hover{border-color:var(--text)}
+.btn-mini:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.login-hint{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.freezes{display:inline-flex;align-items:center;gap:4px}
+.freezes i{width:16px;height:16px;opacity:.35}
+.freezes i.on{opacity:1;color:#5ac8fa}
+.freezes svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+
+
+/* ===================== ПЛАН ===================== */
+.plans{display:flex;flex-direction:column;gap:10px}
+.plan-opt{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-radius:12px;cursor:pointer;
+  background:var(--card);border:1px solid var(--card-edge);transition:border-color .15s;
+}
+.plan-opt:hover{border-color:var(--text-2)}
+.plan-opt.on{border-color:var(--text);box-shadow:inset 0 0 0 1px var(--text)}
+.plan-opt input[type=radio]{width:18px;height:18px;accent-color:var(--text);flex:none}
+.po-body{flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px}
+.po-body b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px}
+.po-body span{font-size:13.5px;color:var(--text-2);line-height:1.4}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--el-edge);border-radius:8px;overflow:hidden}
+.stepper button{width:40px;height:40px;border:0;background:var(--el);color:var(--text);font-size:20px;cursor:pointer}
+.stepper button:hover{filter:brightness(1.1)}
+.stepper output{min-width:40px;text-align:center;font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px}
+.plan-opt input[type=date]{
+  height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--el-edge);background:var(--el);color:var(--text);
+  font:inherit;font-size:15px;color-scheme:light dark;
+}
+.plan-note{font-size:13px;line-height:1.5;color:var(--text-2);margin:6px 2px}
+.plan-err{min-height:1.2em;color:var(--bad);font-size:13.5px}
+.plans .btn:disabled{opacity:.45;pointer-events:none}
+
+/* ===================== ФОН: НОЧНАЯ ТРАССА =====================
+   Свой фон вместо общего bh-backdrop (Design/palette.md, исключение ПДД):
+   небо, тусклое зарево на горизонте, дорога в перспективе. Движется ровно
+   один слой — полоса разметки — и только transform'ом
+   (Design/motion.md). Скорость — от огонька: data-drive = out | ember | lit. */
+
+:root{
+  /* день */
+  --sky:linear-gradient(180deg,#b7cde4 0%,#d3e1ef 42%,#eef3f8 58%);
+  --city:transparent;
+  --asphalt-near:#9aa4af; --asphalt-far:#c3cad2;
+  --lane:rgba(255,255,255,.55); --edge:rgba(255,255,255,.25);
+  --fog:rgba(238,243,248,.85);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sky:linear-gradient(180deg,#02050a 0%,#07101d 38%,#12213a 58%);
+    --city:rgba(86,150,255,.12);
+    --asphalt-near:#121822; --asphalt-far:#0a0f17;
+    --lane:rgba(226,236,250,.16); --edge:rgba(226,236,250,.07);
+    --fog:rgba(30,58,104,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --sky:linear-gradient(180deg,#02050a 0%,#07101d 38%,#12213a 58%);
+  --city:rgba(86,150,255,.12);
+  --asphalt-near:#121822; --asphalt-far:#0a0f17;
+  --lane:rgba(226,236,250,.16); --edge:rgba(226,236,250,.07);
+  --fog:rgba(30,58,104,.3);
+}
+
+.road-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg)}
+/* Горизонт — на 58% высоты: над ним небо, под ним дорога. */
+.road-bg .sky{
+  position:absolute;inset:0 0 42% 0;
+  background:
+    radial-gradient(55% 45% at 50% 100%,var(--city),transparent 70%),
+    var(--sky);
+}
+.road-bg .road{
+  position:absolute;left:0;right:0;top:58%;bottom:0;
+  perspective:260px;perspective-origin:50% 0;
+  background:var(--asphalt-far);
+}
+.road-plane{
+  position:absolute;left:50%;bottom:0;width:760px;height:2400px;
+  transform-origin:50% 100%;transform:translateX(-50%) rotateX(82deg);
+  background:linear-gradient(to top,var(--asphalt-near),var(--asphalt-far) 70%);
+  overflow:hidden;
+  /* Дальний край растворяется в дымке, а не обрезается линией. */
+  -webkit-mask-image:linear-gradient(to top,#000 55%,transparent 95%);
+          mask-image:linear-gradient(to top,#000 55%,transparent 95%);
+}
+/* Полоса разметки: только штрихи по центру (80 из 160 px) и едва заметные
+   края — минимализм: фон не должен тянуть внимание от вопроса. Сдвиг на
+   период (160 px) зацикливается без скачка. */
+.road-strip{
+  position:absolute;left:0;right:0;top:-160px;bottom:0;
+  background:
+    repeating-linear-gradient(to bottom,var(--lane) 0 80px,transparent 80px 160px) 50% 0/8px 160px repeat-y,
+    linear-gradient(var(--edge),var(--edge)) 16% 0/5px 100% no-repeat,
+    linear-gradient(var(--edge),var(--edge)) 84% 0/5px 100% no-repeat;
+  will-change:transform;
+  animation:drive var(--drive-dur,4s) linear infinite;
+}
+@keyframes drive{from{transform:translateY(0)}to{transform:translateY(160px)}}
+.road-bg[data-drive="out"] .road-strip{animation-play-state:paused}
+/* Медленно: периода 160 px за секунды — едва заметное движение, а не гонка. */
+.road-bg[data-drive="ember"]{--drive-dur:9s}
+.road-bg[data-drive="lit"]{--drive-dur:4s}
+/* «Приглушить фон» — машина встаёт. */
+.road-bg.parked .road-strip{animation-play-state:paused}
+/* Дымка на горизонте прячет стык неба и дороги. */
+.road-bg .road-fog{
+  position:absolute;left:0;right:0;top:50%;height:16%;
+  background:linear-gradient(to bottom,transparent,var(--fog) 50%,transparent);
+}
+@media (prefers-reduced-motion: reduce){
+  .road-strip{animation:none}
+}
+
+/* ===================== МАШИНА =====================
+   Плоский векторный седан, вид сзади и чуть сверху, правая полоса (129px —
+   середина правой полосы: полотно у низа экрана 760px, края на 16%/84%).
+   Слой между фоном (z-index -1) и контентом (1): карточки её закрывают,
+   видно там, где контента нет. Синий кузов — как на референсе и в
+   тон ночной трассе; оранжевого в интерфейсе по-прежнему нет. */
+:root{
+  --car-body:#2f6fd6; --car-dark:#1d4f9e; --car-light:#5a92e8; --car-glass:#1c2430; --car-tyre:#12161c;
+  --tail:#c42a22; --tail-on:#ff3b30;
+}
+:root[data-theme="dark"]{--car-body:#2a62bf;--car-dark:#173f80;--car-light:#4a80d6;--car-glass:#0b1118;--tail:#8e1c16}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--car-body:#2a62bf;--car-dark:#173f80;--car-light:#4a80d6;--car-glass:#0b1118;--tail:#8e1c16}}
+
+.car{position:fixed;z-index:0;bottom:6px;left:calc(50% + 129px);width:118px;transform:translateX(-50%);pointer-events:none}
+.car svg{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 100%}
+.car .car-shadow{fill:#000;opacity:.35}
+.car .tyre{fill:var(--car-tyre)}
+.car .light{fill:var(--car-light)}
+.car .glass{fill:var(--car-glass)}
+.car .glint{fill:#fff;opacity:.1}
+.car .mirror{fill:var(--car-dark)}
+.car .crease{stroke:var(--car-light);stroke-width:1.2;opacity:.5}
+.car .bumper{fill:#171b22}
+.car .car-plate{fill:#f5f5f2;stroke:#111;stroke-width:1}
+.car .car-flag{fill:#1c57c6}
+.car .tail{fill:var(--tail);transition:fill .15s}
+.car .brake-glow{opacity:0;transition:opacity .15s}
+
+/* Едет — чуть покачивается на подвеске. Стоит — не качается. */
+/* Реакции (ok / bad / lit) важнее покачивания: без :not(...) это правило
+   специфичнее и перебивало их, пока дорога едет. */
+.road-bg:not([data-drive="out"]):not(.parked) ~ .car:not(.ok):not(.bad):not(.lit) svg{animation:car-bob .7s ease-in-out infinite alternate}
+@keyframes car-bob{to{transform:translateY(-1px)}}
+/* Верно — разгон: присела на задние колёса, ушла вперёд (меньше и выше —
+   удаляется по дороге) и плавно вернулась. Дорога в это время ускоряется
+   (roadSpeed в app.js). */
+.car.ok svg{animation:car-go 1.6s cubic-bezier(.3,.6,.3,1)}
+@keyframes car-go{
+  8%{transform:translateY(2px) scaleY(.96)}
+  38%{transform:translateY(-30px) scale(.84)}
+  60%{transform:translateY(-24px) scale(.87)}
+  100%{transform:none}
+}
+/* Ошибка — тормозит: загораются стоп-сигналы (свечение только вокруг
+   фонарей, не обводка всей машины) и занос. */
+.car.bad .tail{fill:var(--tail-on)}
+.car.bad .brake-glow{opacity:1}
+/* Занос: корму бросает из стороны в сторону с затуханием, дорога резко
+   замедляется (roadSpeed в app.js). */
+.car.bad svg{animation:car-skid 1.3s cubic-bezier(.25,.6,.4,1)}
+@keyframes car-skid{
+  10%{transform:translateX(-14px) rotate(-7deg)}
+  28%{transform:translateX(16px) rotate(6deg)}
+  46%{transform:translateX(-9px) rotate(-3.5deg)}
+  64%{transform:translateX(5px) rotate(2deg)}
+  82%{transform:translateX(-2px) rotate(-.6deg)}
+  100%{transform:none}
+}
+/* Огонёк зажёгся — два радостных подскока. */
+.car.lit svg{animation:car-hop .9s ease-out}
+@keyframes car-hop{20%{transform:translateY(-10px)}40%{transform:none}60%{transform:translateY(-6px)}80%{transform:none}}
+
+@media (max-width:40rem){
+  .car{width:84px;bottom:4px}
+}
+@media (prefers-reduced-motion: reduce){
+  .car svg,.car.ok svg,.car.bad svg,.car.lit svg{animation:none!important}
+}
+}
+}
+
+/* ===================== РЕЖИМЫ ===================== */
+.lamp{text-decoration:none}
+a.lamp:hover{filter:brightness(1.1)}
+.modes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:22px}
+.mode{
+  display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;text-decoration:none;
+  background:var(--card);border:1px solid var(--card-edge);transition:border-color .15s,transform .15s var(--ease);
+}
+.mode:hover{border-color:var(--text-2);transform:translateY(-2px)}
+.mode:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.mode b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px}
+.mode span{font-size:13px;line-height:1.4;color:var(--text-2)}
+.mode em{font-style:normal;font-size:12.5px;font-weight:600}
+.mode em.ok{color:var(--ok)}
+.mode em.bad{color:var(--bad)}
+
+/* Лента без групп (ошибки, темы) и доп. вопросы экзамена. */
+.strip.flat{grid-template-columns:1fr}
+.strip.flat .strip-block{grid-template-columns:repeat(var(--n,20),1fr)}
+.pill.done{color:var(--text);border-bottom-color:var(--text-2)}
+.pill.extra{box-shadow:inset 0 2px 0 var(--warn)}
+.answer.picked{border-color:var(--text);background:var(--el);box-shadow:inset 0 0 0 1px var(--text)}
+.answer.picked .key{background:var(--text);color:var(--card)}
+.qsrc{margin-left:10px;font-family:var(--font);font-style:normal;font-weight:500;text-transform:none;letter-spacing:0;opacity:.8}
+
+/* Таймер экзамена — как цифры на приборке; последняя минута — красным. */
+.timer{
+  font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums;
+  padding:4px 10px;border-radius:6px;background:var(--el);border:1px solid var(--el-edge);
+}
+.timer.low{color:var(--bad);border-color:var(--bad)}
+
+/* Темы: список с прогрессом. */
+.topics{display:flex;flex-direction:column;gap:8px}
+.topic{
+  display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;padding:12px 16px;border-radius:10px;text-decoration:none;
+  background:var(--card);border:1px solid var(--card-edge);
+}
+.topic:hover{border-color:var(--text-2)}
+.t-name{font-weight:600;line-height:1.35}
+.t-meta{font-size:12.5px;color:var(--text-2);white-space:nowrap}
+.t-meta b{color:var(--warn);font-weight:600}
+.t-bar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--el-edge);overflow:hidden}
+.t-bar i{display:block;height:100%;background:var(--ok)}
+
+@media (max-width:40rem){
+
+  .strip.flat .strip-block{grid-template-columns:repeat(10,1fr)}
+}
+/* Мини-билет: карточка — не ссылка целиком, внутри выбор размера. */
+.mode.mini:hover{transform:none;border-color:var(--card-edge)}
+.mini-pick{display:flex;gap:6px;margin-top:4px}
+.mini-pick a{
+  flex:1;display:grid;place-items:center;height:34px;border-radius:6px;text-decoration:none;
+  font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:16px;color:var(--text);
+  background:var(--el);border:1px solid var(--el-edge);transition:border-color .15s;
+}
+.mini-pick a:hover{border-color:var(--text)}
+.mini-pick a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+@media (max-width:52rem){ .modes{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:30rem){ .modes{grid-template-columns:1fr} }
+
+/* Телефон: спидометр «решено верно» — отдельным рядом сверху, крупно; под ним
+   «сегодня» и «билетов сдано» в два столбца. В один ряд из трёх на узком
+   экране все три выходили мелкими. */
+@media (max-width:40rem){
+  .dials{grid-template-columns:1fr 1fr;gap:4px 14px;max-width:360px}
+  .dials .dial.big{grid-column:1/-1;order:-1;width:74%;margin:0 auto 4px}
+  .dials .dial:not(.big){width:100%}
+  .dial .label{font-size:11px}
+  .dial.big .label{font-size:12px}
+}
+
+/* ===================== ДРУЗЬЯ ===================== */
+.friend-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.friend{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
+  padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--card-edge);
+}
+.friend .flame{width:30px;height:30px}
+.f-main{display:flex;flex-direction:column;gap:1px;min-width:0}
+.f-main b{font-weight:650;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-days{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:14px}
+.friend[data-state="out"] .f-days{color:var(--text-2);font-weight:600}
+.f-sub{font-size:12.5px;line-height:1.35;color:var(--text-2)}
+.f-sent{font-size:12.5px;color:var(--text-2);white-space:nowrap}
+.f-sent.ok{color:var(--ok);font-weight:600}
+.friends-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.friends-empty{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:14px 16px;border-radius:12px;background:var(--card);border:1px solid var(--card-edge);
+  font-size:14px;line-height:1.45;color:var(--text-2);
+}
+.friends-note{font-size:12.5px;color:var(--text-2)}
+.btn-mini.ghost{background:transparent}
+.btn-mini:disabled{opacity:.5;pointer-events:none}
+/* Тост входящего толчка — как «огонёк зажёгся», без разгорания. */
+.nudge-toast .flame{width:40px;height:40px}
+.nudge-toast .lt-title{font-size:16px}
+
+/* Напоминание на странице плана. */
+.plan-opt.remind{cursor:default}
+.plan-opt select{
+  height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--el-edge);background:var(--el);color:var(--text);
+  font:inherit;font-size:15px;color-scheme:light dark;
+}
+
+/* ===================== МОТИВАЦИЯ ===================== */
+/* По ходу: фраза к ответу, «+1», значок серии. */
+.verdict{position:relative;flex-wrap:wrap}
+.v-praise{font-family:var(--font);font-style:normal;font-weight:500;font-size:13.5px;color:var(--text-2);margin-left:4px}
+.v-praise:empty{display:none}
+.v-praise::before{content:"· "}
+.plus-one{
+  display:inline-block;margin-left:6px;font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:18px;color:var(--ok);
+  pointer-events:none;animation:plus-one .9s var(--ease) forwards;
+}
+@keyframes plus-one{0%{opacity:0;transform:translateY(4px) scale(.8)}20%{opacity:1;transform:translateY(-6px) scale(1.1)}100%{opacity:0;transform:translateY(-26px)}}
+.combo-chip{
+  display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:2px 10px 2px 6px;border-radius:999px;
+  font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:13px;color:var(--text);
+  background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);
+  animation:combo-in .5s cubic-bezier(.34,1.5,.5,1);
+}
+.combo-chip .flame{width:16px;height:16px}
+@keyframes combo-in{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
+
+/* Конец билета/экзамена: карточка поверх экрана, флаг, конфетти. */
+.finish-overlay{
+  position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;cursor:pointer;
+  background:color-mix(in srgb,var(--bg) 55%,transparent);backdrop-filter:blur(3px);
+  animation:fo-fade .3s ease-out both;
+}
+.finish-overlay.leaving{animation:fo-fade-out .35s ease-in both}
+@keyframes fo-fade{from{opacity:0}}
+@keyframes fo-fade-out{to{opacity:0}}
+.fo-card{
+  position:relative;z-index:1;max-width:420px;width:100%;padding:26px 24px 24px;border-radius:20px;text-align:center;
+  background:var(--card);border:1px solid var(--card-edge);box-shadow:0 20px 60px rgba(0,0,0,.45);
+  animation:fo-pop .6s cubic-bezier(.34,1.45,.5,1) .05s both;
+}
+@keyframes fo-pop{from{opacity:0;transform:scale(.6) translateY(20px)}to{opacity:1;transform:none}}
+.fo-card h2{margin-top:10px;font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:30px;line-height:1.1}
+.finish-overlay.perfect h2,.finish-overlay.pass h2{color:var(--ok)}
+.fo-card p{margin-top:8px;font-size:15px;line-height:1.45;color:var(--text-2)}
+.fo-icons{display:flex;align-items:flex-end;justify-content:center;gap:10px;height:64px}
+.fo-flag{width:64px;height:48px;color:var(--text);transform-origin:10% 100%;animation:fo-flag-in .6s cubic-bezier(.34,1.4,.5,1) .15s both}
+.fo-cloth{transform-box:fill-box;transform-origin:0 50%;animation:fo-wave .9s ease-in-out .5s infinite alternate}
+@keyframes fo-flag-in{from{opacity:0;transform:rotate(-40deg) scale(.6)}to{opacity:1;transform:none}}
+@keyframes fo-wave{from{transform:skewY(-4deg) scaleX(.94)}to{transform:skewY(4deg) scaleX(1)}}
+.fo-flame{width:52px!important;height:52px!important}
+.finish-overlay.fail .fo-flame{width:44px!important;height:44px!important}
+/* Конфетти — цвета дорожных знаков: белый, зелёный, жёлтый, синий, красный. */
+.fo-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.fo-confetti i{
+  position:absolute;top:-4vh;left:var(--x);width:var(--w);height:calc(var(--w) * .45);background:var(--c);border-radius:1px;
+  animation:fo-fall var(--d) cubic-bezier(.25,.6,.45,1) var(--t) both;
+}
+@keyframes fo-fall{
+  0%{opacity:0;transform:translate(0,0) rotate(0)}
+  8%{opacity:1}
+  100%{opacity:.9;transform:translate(var(--dx),108vh) rotate(var(--r))}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .plus-one,.combo-chip,.fo-card,.fo-flag,.fo-cloth,.finish-overlay,.finish-overlay.leaving{animation:none!important}
+  .plus-one{display:none}
+}
+/* «На главную» в итоге билета — отдельной строкой под двумя главными кнопками. */
+.result .result-home{margin-top:2px}

@@ -12,9 +12,19 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8798
-      # Поисковики не пускаем, пока пояснения к ответам не свои
-      # (ARCHITECTURE.md, «База билетов»). Включить: INDEXABLE: "1".
-      INDEXABLE: "0"
+      # ОБЯЗАТЕЛЬНО ровно тот адрес, что задан у auth в ISSUER: он подписан внутрь
+      # токенов. Регистрация клиента в auth (один раз):
+      #   docker compose exec auth node server.js client-add pdd "Когда на права?" https://pdd.burninghouse.ru/
+      AUTH_ISSUER: https://auth.burninghouse.ru
+      AUTH_CLIENT_ID: pdd
+      # Вечерние напоминания «огонёк гаснет» шлются через auth /internal/notifications
+      # по общему ключу — тому же ADMIN_INTERNAL_KEY, что у Admin. Хранится в .env
+      # рядом с этим файлом (bash set-env.sh ADMIN_INTERNAL_KEY <ключ>). Без ключа
+      # напоминания просто выключены, остальное работает.
+      ADMIN_INTERNAL_KEY: ${ADMIN_INTERNAL_KEY:-}
+      # Пояснения к ответам свои (bank/tips-own.json) — поисковики пускаем.
+      # INDEXABLE: "0" закроет сайт целиком (meta robots + robots.txt).
+      INDEXABLE: "1"
     ports:
       # Только на localhost — наружу отдаёт nginx на 443 (deploy/nginx-pdd-443.conf).
       - "127.0.0.1:8798:8798"

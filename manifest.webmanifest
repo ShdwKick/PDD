@@ -1,0 +1,25 @@
+{
+  "name": "Когда на права? — билеты ПДД",
+  "short_name": "Когда на права?",
+  "description": "Билеты ПДД категории A и B: экзамен как в ГИБДД, план подготовки и огонёк за каждый день.",
+  "lang": "ru",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070a10",
+  "theme_color": "#0b1018",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Экзамен", "url": "/ekzamen", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Мини-билет · 10", "url": "/mini/10", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Работа над ошибками", "url": "/oshibki", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

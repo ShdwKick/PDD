@@ -6,4 +6,7 @@ node_modules/
 *.md
 deploy/
 tools/
+test/
+dev.mjs
+.dev/
 .claude/

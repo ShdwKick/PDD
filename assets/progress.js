@@ -1,20 +1,22 @@
 "use strict";
-/* Прогресс гостя — в localStorage этого браузера. На этапе 1 единственный
-   источник правды; на этапе 2 при входе он один раз уедет на сервер
-   (/api/import-guest, см. ARCHITECTURE.md), дальше правдой станет сервер.
-   Поэтому формат держим близким к серверным таблицам:
+/* Локальное хранилище. Две роли, в зависимости от того, вошёл ли человек:
 
-     q[id]      — как q_state: сколько раз отвечал, сколько верно, верно ли
-                  в последний раз, сколько верно подряд (для «ошибок»);
-     t[n]       — лучший и последний результат билета;
-     days[день] — сколько вопросов решено в этот день по МЕСТНОМУ времени,
-                  заготовка под activity_days и огонёк;
-     runs[n]    — незаконченный билет: какие ответы уже даны. Отдельно на
-                  каждый билет, чтобы открыв другой, не потерять начатый. */
+   Гость — здесь вся правда: статистика вопросов (q), результаты билетов (t),
+   вопросы по дням (days, по МЕСТНОМУ времени) и свой план. Огонёк у гостя
+   считается здесь же, упрощённо: норма текущего плана применяется ко всем
+   дням, заморозок нет. При первом входе всё это один раз уезжает на сервер
+   (exportGuest → /api/import-guest) и отсюда стирается (clearGuestStats).
+
+   Вошедший — правда на сервере (lib/store.js). Здесь остаются только
+   незаконченные билеты (runs — они про это устройство) и очередь ответов,
+   которые не удалось отправить (outbox): без сети ответ не должен пропасть
+   для огонька, сервер засчитает его в свой день по времени ответа. */
 
 const KEY = "bh-pdd-v1";
+const OUTBOX_KEY = "bh-pdd-outbox";
+export const Q_PER_TICKET = 20;
 
-function empty() { return { v: 1, q: {}, t: {}, days: {}, runs: {} }; }
+function empty() { return { v: 1, q: {}, t: {}, days: {}, runs: {}, exams: [], plan: { kind: "daily", tickets: 1 } }; }
 
 function read() {
   try {
@@ -32,17 +34,60 @@ function write(d) {
 export function today() {
   return new Date().toLocaleDateString("sv-SE");
 }
+function shiftDay(key, delta) {
+  const [y, m, dd] = key.split("-").map(Number);
+  return new Date(y, m - 1, dd + delta).toLocaleDateString("sv-SE");
+}
+function diffDays(from, to) {
+  const t = k => { const [y, m, d] = k.split("-").map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((t(to) - t(from)) / 86400000);
+}
 
-/** Незаконченный билет или null. */
+/* ---------- незаконченные билеты — и у гостя, и у вошедшего ---------- */
+
 export function getRun(ticket) {
   return read().runs[ticket] || null;
 }
+export function setRunAnswer(ticket, num, chosen) {
+  const d = read();
+  const run = d.runs[ticket] || { answers: {}, startedAt: Date.now() };
+  run.answers[num] = chosen;
+  d.runs[ticket] = run;
+  write(d);
+}
+export function resetRun(ticket) {
+  const d = read();
+  delete d.runs[ticket];
+  write(d);
+}
+export function localRuns() {
+  return read().runs;
+}
 
-/** Ответ на вопрос билета. Пишется сразу, а не в конце билета: вопрос решён —
- * значит, он засчитан в день, даже если билет бросили на середине. */
-export function recordAnswer(ticket, num, question, chosen) {
+/* ---------- план ---------- */
+
+export function getLocalPlan() { return read().plan; }
+export function setLocalPlan(plan) { const d = read(); d.plan = plan; write(d); }
+
+/** Норма на сегодня в вопросах — та же формула, что targetFor() на сервере. */
+export function targetFor(plan, learned, total) {
+  if (plan?.kind === "exam_date") {
+    const daysLeft = diffDays(today(), plan.date) + 1;
+    if (daysLeft < 1) return Q_PER_TICKET;
+    return Math.min(200, Math.max(Q_PER_TICKET, Math.ceil((total - learned) / daysLeft)));
+  }
+  return (plan?.tickets || 1) * Q_PER_TICKET;
+}
+
+/* ---------- гость ---------- */
+
+/** Ответ гостя. Пишется сразу, а не в конце билета: вопрос решён — значит,
+ * засчитан в день, даже если билет бросили на середине. lit — этот ответ
+ * закрыл дневную норму. */
+export function recordGuestAnswer(ticket, num, question, chosen, total) {
   const d = read();
   const ok = chosen === question.correct;
+  const target = targetFor(d.plan, Object.values(d.q).filter(s => s.last === 1).length, total);
 
   const s = d.q[question.id] || { n: 0, ok: 0, last: 0, streak: 0, at: 0 };
   s.n++; if (ok) s.ok++;
@@ -55,48 +100,20 @@ export function recordAnswer(ticket, num, question, chosen) {
   const before = d.days[day] || 0;
   d.days[day] = before + 1;
 
-  const run = d.runs[ticket] || { answers: {}, startedAt: Date.now() };
-  run.answers[num] = chosen;
-  d.runs[ticket] = run;
+  // Незаконченный билет — только в режиме билета (ticket не null). Экзамен,
+  // ошибки и темы в runs не пишут.
+  if (ticket != null) {
+    const run = d.runs[ticket] || { answers: {}, startedAt: Date.now() };
+    run.answers[num] = chosen;
+    d.runs[ticket] = run;
+  }
 
   write(d);
-  // lit — этот ответ закрыл дневную норму: огонёк зажёгся прямо сейчас.
-  return { ok, lit: before < DAILY_TARGET && before + 1 >= DAILY_TARGET };
+  return { ok, lit: before < target && before + 1 >= target };
 }
 
-/* ---------- огонёк ----------
-   Дневная норма — пока фиксированная: один билет, 20 вопросов. На этапе 2 её
-   заменит норма из плана пользователя и заморозки (ARCHITECTURE.md, «Огонёк»);
-   считать тогда будет сервер, а это останется гостевым вариантом. */
-
-export const DAILY_TARGET = 20;
-
-function shiftDay(key, delta) {
-  const [y, m, dd] = key.split("-").map(Number);
-  return new Date(y, m - 1, dd + delta).toLocaleDateString("sv-SE");
-}
-
-/** Серия дней подряд с выполненной нормой. Сегодня ещё не выполнено — серия
- * не сгорела, её просто считаем со вчера: до полуночи время есть. */
-export function streak() {
-  const { days } = read();
-  const todayKey = today();
-  const todayCount = days[todayKey] || 0;
-  const todayDone = todayCount >= DAILY_TARGET;
-  let current = 0;
-  for (let key = todayDone ? todayKey : shiftDay(todayKey, -1); (days[key] || 0) >= DAILY_TARGET; key = shiftDay(key, -1)) current++;
-  // Лучшая серия — по всей истории, чтобы после перерыва было к чему стремиться.
-  let best = 0, run = 0, prev = null;
-  for (const key of Object.keys(days).filter(k => days[k] >= DAILY_TARGET).sort()) {
-    run = prev && shiftDay(prev, 1) === key ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = key;
-  }
-  return { current, best, todayCount, todayDone, target: DAILY_TARGET };
-}
-
-/** Билет решён целиком: запоминаем результат и убираем незаконченный. */
-export function finishRun(ticket, correctCount, passed) {
+/** Билет решён целиком: запоминаем результат (гость) и убираем незаконченный. */
+export function finishGuestRun(ticket, correctCount, passed) {
   const d = read();
   const prev = d.t[ticket];
   d.t[ticket] = {
@@ -111,25 +128,92 @@ export function finishRun(ticket, correctCount, passed) {
   write(d);
 }
 
-export function resetRun(ticket) {
+/** Ошибка — хоть раз ошибся и ещё не ответил верно дважды подряд (то же
+ * правило, что на сервере, lib/store.js). */
+const isMistake = s => s.n > s.ok && s.streak < 2;
+
+/** Сводка гостя для главной — в той же форме, что summary с сервера. */
+export function guestSummary(total) {
   const d = read();
-  delete d.runs[ticket];
+  const qs = Object.values(d.q);
+  const exams = d.exams || [];
+  return {
+    tickets: d.t,
+    passedTickets: Object.values(d.t).filter(t => t.passed).length, // по последнему решению
+    learned: qs.filter(s => s.last === 1).length,  // последний ответ верный
+    mistakes: qs.filter(isMistake).length,
+    total,
+    exams: { count: exams.length, passed: exams.filter(e => e.passed).length, last: exams[exams.length - 1] || null },
+  };
+}
+
+/** Выученные и ошибки гостя — в той же форме, что /api/me/qstate. */
+export function guestQState() {
+  const d = read();
+  const learned = [], mistakes = [];
+  for (const [id, s] of Object.entries(d.q)) {
+    if (s.last === 1) learned.push(id);
+    if (isMistake(s)) mistakes.push(id);
+  }
+  return { learned, mistakes };
+}
+
+/** Экзамен гостя — хранятся последние 20 итогов. */
+export function recordGuestExam(result) {
+  const d = read();
+  d.exams = [...(d.exams || []), { at: Date.now(), passed: !!result.passed, reason: result.reason || null, wrong: result.wrong | 0 }].slice(-20);
   write(d);
 }
 
-/** Сводка для главной. */
-export function summary() {
+/** Огонёк гостя — в той же форме, что streak с сервера (без заморозок). Сегодня
+ * ещё не выполнено — серия не сгорела, считаем со вчера: до полуночи время есть. */
+export function guestStreak(total) {
   const d = read();
-  const qs = Object.values(d.q);
-  return {
-    tickets: d.t,
-    runs: d.runs,
-    passedTickets: Object.values(d.t).filter(t => t.passed).length, // по последнему решению
-    days: d.days,
-    learned: qs.filter(s => s.last === 1).length,  // последний ответ верный
-    mistakes: qs.filter(s => s.last === 0).length, // последний ответ неверный
-    todayCount: d.days[today()] || 0,
-  };
+  const target = targetFor(d.plan, Object.values(d.q).filter(s => s.last === 1).length, total);
+  const todayKey = today();
+  const todayCount = d.days[todayKey] || 0;
+  const todayDone = todayCount >= target;
+  let current = 0;
+  for (let key = todayDone ? todayKey : shiftDay(todayKey, -1); (d.days[key] || 0) >= target; key = shiftDay(key, -1)) current++;
+  let best = 0, run = 0, prev = null;
+  for (const key of Object.keys(d.days).filter(k => d.days[k] >= target).sort()) {
+    run = prev && shiftDay(prev, 1) === key ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = key;
+  }
+  return { current, best, todayCount, todayDone, target, freezes: null, nextFreezeIn: null };
+}
+
+/* ---------- перенос гостя на сервер ---------- */
+
+export function hasGuestStats() {
+  const d = read();
+  return Object.keys(d.q).length > 0 || Object.keys(d.t).length > 0;
+}
+export function exportGuest() {
+  const d = read();
+  return { data: { q: d.q, t: d.t, days: d.days }, target: targetFor(d.plan, 0, 0) };
+}
+/** После переноса статистика гостя больше не нужна: иначе при выходе из
+ * аккаунта человек увидел бы старый гостевой прогресс вместо пустого. */
+export function clearGuestStats() {
+  const d = read();
+  d.q = {}; d.t = {}; d.days = {};
+  write(d);
+}
+
+/* ---------- очередь неотправленных ответов ---------- */
+
+export function outbox() {
+  try { return JSON.parse(localStorage.getItem(OUTBOX_KEY)) || []; } catch { return []; }
+}
+export function outboxPush(item) {
+  const list = outbox();
+  list.push(item);
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-500))); } catch {}
+}
+export function outboxDrop(rid) {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox().filter(x => x.rid !== rid))); } catch {}
 }
 
 /** «вопрос», «вопроса», «вопросов». */

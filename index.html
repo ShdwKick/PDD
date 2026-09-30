@@ -19,6 +19,8 @@
 <meta property="og:description" content="40 экзаменационных билетов ПДД категории A, B, M: 800 вопросов с пояснениями, как на экзамене в ГАИ.">
 
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b1018">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Exo+2:ital,wght@0,500;0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
@@ -27,14 +29,55 @@
 </head>
 <body>
 
-<!-- Горящий дом за интерфейсом (Design/motion.md). Искры пока без своей
-     повадки — ровно вверх, как у входа; своя (больше искр с каждым днём
-     огонька) появится вместе с огоньком, на этапе оформления. -->
-<div class="bh-backdrop bh-backdrop--page" id="backdrop" aria-hidden="true">
-  <div class="bh-layer"><div class="bh-glow"></div></div>
-  <div class="bh-layer"><div class="bh-sweep"></div></div>
-  <div class="bh-layer"><div class="bh-haze"></div></div>
-  <div class="bh-layer bh-sparks" data-bh-sparks="10"></div>
+<!-- Фон — ночная трасса, а не общий «горящий дом» остальных сервисов (см.
+     Design/palette.md, «Исключение: приборная панель»): небо, зарево города
+     на горизонте, дорога в перспективе с бегущей разметкой и пятнами фонарей.
+     Скорость — от огонька (data-drive, ставит app.js). Стили — assets/styles.css. -->
+<div class="road-bg" id="backdrop" data-drive="out" aria-hidden="true">
+  <div class="sky"></div>
+  <div class="road"><div class="road-plane"><div class="road-strip"></div></div></div>
+  <div class="road-fog"></div>
+</div>
+
+<!-- Машина пользователя — плоский векторный седан, вид сзади и чуть
+     сверху (видны крыша и крышка багажника), правая полоса. Фар нет: на этом
+     масштабе свет выглядел больше самой машины. Под контентом. Реакции — классы ok / bad / lit (app.js: carReact):
+     верно — газует, ошибка — стоп-сигналы и занос, огонёк — подскоки. -->
+<div class="car" id="car" aria-hidden="true">
+  <svg viewBox="0 0 160 150">
+    <defs>
+      <radialGradient id="brakeGlow">
+        <stop offset="0" stop-color="#ff3b30" stop-opacity=".75"/>
+        <stop offset="1" stop-color="#ff3b30" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="carBody" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="var(--car-dark)"/>
+        <stop offset=".18" stop-color="var(--car-body)"/>
+        <stop offset=".82" stop-color="var(--car-body)"/>
+        <stop offset="1" stop-color="var(--car-dark)"/>
+      </linearGradient>
+    </defs>
+    <ellipse class="car-shadow" cx="80" cy="145" rx="74" ry="6"/>
+    <rect class="tyre" x="15" y="116" width="22" height="28" rx="5"/>
+    <rect class="tyre" x="123" y="116" width="22" height="28" rx="5"/>
+    <path class="light" d="M50 52 Q52 47 59 47 L101 47 Q108 47 110 52 Z"/>
+    <path class="body" fill="url(#carBody)" d="M36 81 L46 56 Q48 52 54 52 L106 52 Q112 52 114 56 L124 81 Z"/>
+    <path class="glass" d="M44 79 L52 59 Q53.4 57 56 57 L104 57 Q106.6 57 108 59 L116 79 Z"/>
+    <path class="glint" d="M60 57 L74 57 L62 79 L48 79 Z"/>
+    <path class="mirror" d="M31 77 L19 75 Q14.5 75 15 79.5 L16.5 83 L33 83 Z"/>
+    <path class="mirror" d="M129 77 L141 75 Q145.5 75 145 79.5 L143.5 83 L127 83 Z"/>
+    <path class="light" d="M28 87 L132 87 L125 80 L35 80 Z"/>
+    <path class="body" fill="url(#carBody)" d="M12 100 Q12 88 26 87 L134 87 Q148 88 148 100 L150 126 Q150 134 142 134 L18 134 Q10 134 10 126 Z"/>
+    <!-- Свечение стоп-сигналов — только вокруг фонарей, вспыхивает при ошибке. -->
+    <ellipse class="brake-glow" cx="29" cy="97" rx="24" ry="13" fill="url(#brakeGlow)"/>
+    <ellipse class="brake-glow" cx="131" cy="97" rx="24" ry="13" fill="url(#brakeGlow)"/>
+    <path class="tail" d="M15 92 L45 92 L43 101 L13 103 Z"/>
+    <path class="tail" d="M145 92 L115 92 L117 101 L147 103 Z"/>
+    <path class="crease" d="M14 108 L146 108"/>
+    <rect class="car-plate" x="61" y="106" width="38" height="11" rx="1.5"/>
+    <rect class="car-flag" x="92" y="112" width="5" height="3"/>
+    <rect class="bumper" x="12" y="124" width="136" height="11" rx="4"/>
+  </svg>
 </div>
 
 <div class="topbar">
@@ -58,8 +101,15 @@
     </a>
   </div>
   <div class="topbar-actions">
+    <!-- Скрыта, пока браузер не предложит установку (beforeinstallprompt). -->
+    <button class="icon-btn is-hidden" id="installBtn" type="button" title="Установить на экран" aria-label="Установить на экран">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 19h14"/></svg>
+    </button>
     <button class="icon-btn" id="quietBtn" type="button" title="Приглушить фон" aria-label="Приглушить фон">
       <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button class="icon-btn is-hidden" id="authBtn" type="button" title="Войти через аккаунт BurningHouse" aria-label="Войти через аккаунт BurningHouse">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
     </button>
     <button class="icon-btn" id="themeBtn" type="button" title="Сменить тему" aria-label="Сменить тему"></button>
   </div>
@@ -69,7 +119,8 @@
 
 <p class="foot">Когда на права? · BurningHouse</p>
 
-<script src="/assets/brand.js"></script>
+<!-- Копия Auth/client/auth-client-browser.js — не редактировать здесь. -->
+<script src="/assets/auth-client.js"></script>
 <script type="module" src="/assets/app.js"></script>
 </body>
 </html>
