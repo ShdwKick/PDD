@@ -428,7 +428,7 @@ function roadSpeed(curve, ms) {
 /* Уровни огонька — как серия в TikTok: чем дольше горит, тем богаче пламя.
    Уровень = сколько рубежей (M.MILESTONES: 3/7/14/30/50/100 дней) взято
    текущей серией. До 14 дней пламя растёт в том же красно-жёлтом огне
-   (больше язычок, потом боковые языки и ореол), дальше меняет цвет: белое
+   (больше язычок, потом второй слой внутри и ореол), дальше меняет цвет: белое
    ядро, синее пламя, сияющее синее, фиолетовое «легендарное». Погасла серия —
    с ней и уровень. Цвета: [основание, середина, верх] внешнего пламени и
    [низ, верх] внутреннего; spark — цвет искр. */
@@ -448,17 +448,18 @@ function flameSvg(state, cls = "", streak = 0) {
   const id = `fl${flameUid++}`;
   const tier = state === "out" ? 0 : M.flameTier(streak);
   const t = FLAME_TIERS[tier];
-  // Боковые языки — с «двойного пламени» (7 дней): та же фигура, меньше и наклонена.
-  const tongues = tier >= 2
-    ? `<path class="tongue l" d="${FLAME_PATH}" fill="url(#${id}o)"/><path class="tongue r" d="${FLAME_PATH}" fill="url(#${id}o)"/>` : "";
+  // «Двойное пламя» (с 7 дней) — второй слой внутри того же силуэта, а не
+  // отдельные языки по бокам: огонёк остаётся одним, просто богаче.
+  const mid = tier >= 2 ? `<path class="mid" d="${FLAME_PATH}" fill="url(#${id}m)"/>` : "";
   return `<span class="flame ${cls}" data-state="${state}" data-tier="${tier}" style="--spark:${t.spark}" aria-hidden="true">
     <svg viewBox="0 0 24 24">
       <defs>
         <linearGradient id="${id}o" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.o[0]}"/><stop offset=".6" stop-color="${t.o[1]}"/><stop offset="1" stop-color="${t.o[2]}"/></linearGradient>
         <linearGradient id="${id}i" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.i[0]}"/><stop offset="1" stop-color="${t.i[1]}"/></linearGradient>
+        <linearGradient id="${id}m" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.o[1]}"/><stop offset="1" stop-color="${t.o[2]}"/></linearGradient>
       </defs>
-      ${tongues}
       <path class="outer" d="${FLAME_PATH}" fill="url(#${id}o)"/>
+      ${mid}
       <path class="inner" d="${FLAME_PATH}" fill="url(#${id}i)"/>
       <circle class="coal" cx="12" cy="17.5" r="3" style="fill:${t.o[0]}"/>
     </svg>
@@ -474,7 +475,9 @@ function flameTierName(streak) {
 
 const daysWord = n => plural(n, "день", "дня", "дней");
 
-const snowIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M4.2 6.5l15.6 9M4.2 17.5l15.6-9M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5M2.8 10l3.6 1-1 3.6M21.2 14l-3.6-1 1-3.6M2.8 14l3.6-1-1-3.6M21.2 10l-3.6 1 1 3.6"/></svg>`;
+// Шесть одинаковых лучей через центр, у каждого — веточки на двух третях.
+const SNOW_PATH = "M12 12L12 2.5M12 5.8L13.77 3.89M12 5.8L10.23 3.89M12 12L20.23 7.25M17.37 8.9L19.9 9.48M17.37 8.9L18.14 6.42M12 12L20.23 16.75M17.37 15.1L18.14 17.58M17.37 15.1L19.9 14.52M12 12L12 21.5M12 18.2L10.23 20.11M12 18.2L13.77 20.11M12 12L3.77 16.75M6.63 15.1L4.1 14.52M6.63 15.1L5.86 17.58M12 12L3.77 7.25M6.63 8.9L5.86 6.42M6.63 8.9L4.1 9.48";
+const snowIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${SNOW_PATH}"/></svg>`;
 
 function planLabel(plan) {
   if (plan?.kind === "exam_date") {
@@ -936,7 +939,7 @@ const BADGE_ICONS = {
   shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
   bolt: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
   road: '<path d="M8 3L4 21M16 3l4 18M12 4v3M12 10.5v3M12 17v3"/>',
-  snow: '<path d="M12 2v20M4.2 6.5l15.6 9M4.2 17.5l15.6-9M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5"/>',
+  snow: `<path d="${SNOW_PATH}"/>`,
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',
   crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',

@@ -926,14 +926,15 @@ a.lamp:hover{filter:brightness(1.1)}
   70%{transform:scale(calc(var(--in) * 1.06),calc(var(--in) * .94)) skewX(2deg)}
 }
 .flame .sparks b{background:var(--spark,#ffcc00)}
-.flame .tongue{transform-box:fill-box;transform-origin:50% 100%;opacity:.9}
-.flame .tongue.l{transform:translate(-4.8px,1.5px) rotate(-24deg) scale(.46,.52)}
-.flame .tongue.r{transform:translate(4.8px,1.5px) rotate(24deg) scale(.46,.52)}
-.flame[data-state="lit"] .tongue.l{animation:tongue-l 1.5s ease-in-out infinite}
-.flame[data-state="lit"] .tongue.r{animation:tongue-r 1.7s ease-in-out .3s infinite}
-@keyframes tongue-l{50%{transform:translate(-4.8px,1.5px) rotate(-30deg) scale(.42,.6)}}
-@keyframes tongue-r{50%{transform:translate(4.8px,1.5px) rotate(30deg) scale(.42,.6)}}
-.flame[data-state="ember"] .tongue,.flame[data-state="out"] .tongue{display:none}
+/* Средний слой «двойного пламени» — внутри силуэта, дышит в своём ритме. */
+.flame .mid{transform-box:fill-box;transform-origin:50% 100%;transform:scale(.78)}
+.flame[data-state="lit"] .mid{animation:flicker-mid 1.6s ease-in-out .2s infinite}
+@keyframes flicker-mid{
+  0%,100%{transform:scale(.78,.78)}
+  35%{transform:scale(.75,.83) skewX(1.8deg)}
+  70%{transform:scale(.8,.76) skewX(-1.5deg)}
+}
+.flame[data-state="ember"] .mid,.flame[data-state="out"] .mid{display:none}
 .flame::before{content:"";position:absolute;inset:-35%;border-radius:50%;background:radial-gradient(circle,var(--spark) 0%,transparent 62%);opacity:0;pointer-events:none}
 .flame[data-state="lit"][data-tier="2"]::before,.flame[data-state="lit"][data-tier="3"]::before{opacity:.22}
 .flame[data-state="lit"][data-tier="4"]::before{opacity:.32}
@@ -955,5 +956,5 @@ a.lamp:hover{filter:brightness(1.1)}
 .tn-text span{font-size:12px;line-height:1.3}
 
 @media (prefers-reduced-motion: reduce){
-  .flame .tongue,.flame::before{animation:none!important}
+  .flame .mid,.flame::before{animation:none!important}
 }
