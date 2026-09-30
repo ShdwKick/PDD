@@ -38,13 +38,15 @@ node tools/import.mjs <sha>      # конкретный — воспроизво
 Один раз на сервере:
 
 1. Секреты репозитория: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (environment `env`).
-2. Сертификат: `certbot certonly --nginx -d pdd.burninghouse.ru`.
-3. `deploy/nginx-pdd-443.conf` → `/etc/nginx/sites-available/pdd`, ссылка в
-   `sites-enabled`, `nginx -t && systemctl reload nginx`.
+2. Ключ для вечерних напоминаний — тот же `ADMIN_INTERNAL_KEY`, что у Admin,
+   в `.env` рядом с compose. Без него напоминания только на устройства.
+3. `docker compose -f docker-compose.prod.yml up -d`.
 4. Регистрация в auth (один раз): `docker compose exec auth node server.js client-add pdd "Когда на права?" https://pdd.burninghouse.ru/`.
-5. Ключ для вечерних напоминаний — тот же `ADMIN_INTERNAL_KEY`, что у Admin,
-   в `.env` рядом с compose. Без него напоминания выключены.
-6. `docker compose -f docker-compose.prod.yml up -d`.
+5. nginx и сертификат одной командой: скопировать `deploy/install-nginx.sh` на
+   сервер и `sudo bash install-nginx.sh`. Скрипт убирает старые конфиги
+   pdd.burninghouse.ru (копии в `/root/nginx-backup-pdd-*`), при необходимости
+   получает сертификат, ставит новый, проверяет `nginx -t` (при ошибке откатывает)
+   и что домен отвечает именно pdd, а не соседний сервис. Повторный запуск безопасен.
 
 Уведомления на устройство (Web Push): ключи VAPID создаются сами при первом
 запуске в `data/vapid.json` (volume — переживают обновления образа). Можно

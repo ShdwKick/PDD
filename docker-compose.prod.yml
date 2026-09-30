@@ -26,7 +26,7 @@ services:
       # INDEXABLE: "0" закроет сайт целиком (meta robots + robots.txt).
       INDEXABLE: "1"
     ports:
-      # Только на localhost — наружу отдаёт nginx на 443 (deploy/nginx-pdd-443.conf).
+      # Только на localhost — наружу отдаёт nginx на 443 (deploy/install-nginx.sh).
       - "127.0.0.1:8798:8798"
     volumes:
       - pdd-data:/app/data
