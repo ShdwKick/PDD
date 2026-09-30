@@ -526,8 +526,6 @@ a{color:inherit}
 /* Медленно: периода 160 px за секунды — едва заметное движение, а не гонка. */
 .road-bg[data-drive="ember"]{--drive-dur:9s}
 .road-bg[data-drive="lit"]{--drive-dur:4s}
-/* «Приглушить фон» — машина встаёт. */
-.road-bg.parked .road-strip{animation-play-state:paused}
 /* Дымка на горизонте прячет стык неба и дороги. */
 .road-bg .road-fog{
   position:absolute;left:0;right:0;top:50%;height:16%;
@@ -570,7 +568,7 @@ a{color:inherit}
 /* Едет — чуть покачивается на подвеске. Стоит — не качается. */
 /* Реакции (ok / bad / lit) важнее покачивания: без :not(...) это правило
    специфичнее и перебивало их, пока дорога едет. */
-.road-bg:not([data-drive="out"]):not(.parked) ~ .car:not(.ok):not(.bad):not(.lit) svg{animation:car-bob .7s ease-in-out infinite alternate}
+.road-bg:not([data-drive="out"]) ~ .car:not(.ok):not(.bad):not(.lit) svg{animation:car-bob .7s ease-in-out infinite alternate}
 @keyframes car-bob{to{transform:translateY(-1px)}}
 /* Верно — разгон: присела на задние колёса, ушла вперёд (меньше и выше —
    удаляется по дороге) и плавно вернулась. Дорога в это время ускоряется
@@ -1035,3 +1033,6 @@ a.lamp:hover{filter:brightness(1.1)}
 .acc-links a:focus-visible{outline:2px solid var(--text);outline-offset:-2px;border-radius:6px}
 .acc-logout{width:100%;margin-top:12px;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--el-edge))}
 @media (prefers-reduced-motion: reduce){ .acc-backdrop,.acc-modal{animation:none!important} }
+
+/* Подпись под машиной в гараже — во всю ширину сцены, выровнена по ширине. */
+.garage-note{max-width:none;margin-top:10px;text-align:justify;-webkit-hyphens:auto;hyphens:auto}

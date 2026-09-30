@@ -50,9 +50,13 @@ function diffDays(from, to) {
 export function getRun(ticket) {
   return read().runs[ticket] || null;
 }
+/* Ответы засчитываются в статистику и огонёк только в конце подхода (app.js,
+   runQuiz → recordFinished). deferred — ответы этого незаконченного билета
+   ещё не засчитаны; у билетов, начатых до этого правила, флага нет — их
+   ответы уже в статистике, повторно их не отправляем. */
 export function setRunAnswer(ticket, num, chosen) {
   const d = read();
-  const run = d.runs[ticket] || { answers: {}, startedAt: Date.now() };
+  const run = d.runs[ticket] || { answers: {}, startedAt: Date.now(), deferred: true };
   run.answers[num] = chosen;
   d.runs[ticket] = run;
   write(d);

@@ -317,7 +317,7 @@ async function handleApi(req, res, pathname) {
   }
 
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !["/api/answers", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !["/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -334,13 +334,28 @@ async function handleApi(req, res, pathname) {
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_plan" });
   }
 
+  const answerOf = b => store.answer(user.id, {
+    questionId: String(b?.questionId || ""), chosen: b?.chosen, rid: b?.rid, tz: b?.tz, at: Number(b?.at),
+    mode: ["ticket", "exam", "mistakes", "topic", "mini"].includes(b?.mode) ? b.mode : "ticket",
+  });
   if (pathname === "/api/answers" && method === "POST") {
-    const b = await readJson(req);
-    const r = store.answer(user.id, {
-      questionId: String(b.questionId || ""), chosen: b.chosen, rid: b.rid, tz: b.tz, at: Number(b.at),
-      mode: ["ticket", "exam", "mistakes", "topic", "mini"].includes(b.mode) ? b.mode : "ticket",
-    });
+    const r = answerOf(await readJson(req));
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_answer" });
+  }
+  // Ответы засчитываются, только когда подход закончен (билет, экзамен, мини,
+  // тема, ошибки) — клиент присылает их разом. Кривые пропускаем, а не рушим
+  // весь подход; lit — хоть один ответ зажёг огонёк.
+  if (pathname === "/api/answers/batch" && method === "POST") {
+    const items = (await readJson(req)).items;
+    if (!Array.isArray(items) || !items.length || items.length > 60) return json(res, 400, { error: "bad_batch" });
+    let last = null, lit = false, saved = 0;
+    for (const it of items) {
+      const r = answerOf(it);
+      if (!r) continue;
+      last = r; saved++;
+      if (r.lit) lit = true;
+    }
+    return last ? json(res, 200, { lit, saved, streak: last.streak, summary: last.summary }) : json(res, 400, { error: "bad_batch" });
   }
 
   const f = /^\/api\/tickets\/(\d{1,2})\/finish$/.exec(pathname);

@@ -44,21 +44,6 @@ $("themeBtn").addEventListener("click", () => {
   applyTheme(next);
 });
 
-/* Тихий фон — машина встаёт: дорога замирает. Над вопросом думают, фон не
-   должен отвлекать. */
-const QUIET_KEY = "bh-quiet";
-function isQuiet() { try { return localStorage.getItem(QUIET_KEY) === "1"; } catch { return false; } }
-function applyQuiet(on) {
-  $("backdrop").classList.toggle("parked", on);
-  $("quietBtn").classList.toggle("is-active", on);
-}
-applyQuiet(isQuiet());
-$("quietBtn").addEventListener("click", () => {
-  const next = !isQuiet();
-  try { localStorage.setItem(QUIET_KEY, next ? "1" : "0"); } catch {}
-  applyQuiet(next);
-});
-
 /* ---------- приложение на экран (PWA) ----------
    sw.js кэширует оболочку и билеты — решать можно и без сети. Кнопка
    «Установить» появляется, только когда браузер сам готов предложить установку. */
@@ -156,22 +141,30 @@ function applyServer(r) {
 
 const newRid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
 
-/** Отправить ответ; не вышло — в очередь, отправится позже со своим временем
- * и id (повтор сервер не засчитает дважды). Возвращает { lit }. Без сети
- * огонёк считаем оптимистично, чтобы человек сразу видел, что норма закрыта. */
-async function submitAnswer(ticket, num, q, chosen, mode = "ticket") {
-  const item = { questionId: q.id, chosen, mode, rid: newRid(), at: Date.now(), tz: TZ };
+/** Засчитать ответы законченного подхода (list — [{ q, chosen, mode, at }]).
+ * Вошедшему — разом на сервер; не вышло — в очередь, отправятся позже со
+ * своим временем и id (повтор сервер не засчитает дважды), а огонёк без сети
+ * считаем оптимистично. Гостю — в localStorage. Возвращает { lit }. */
+async function submitAnswers(list, cfg) {
+  if (!list.length) return { lit: false };
+  const guest = () => {
+    let lit = false;
+    // ticket = null: незаконченный билет уже закрыт в result(), заново его не открываем.
+    for (const x of list) if (recordGuestAnswer(null, null, x.q, x.chosen, cfg.unique).lit) lit = true;
+    return { lit };
+  };
+  if (!me) return guest();
+  const items = list.map(x => ({ questionId: x.q.id, chosen: x.chosen, mode: x.mode, rid: newRid(), at: x.at, tz: TZ }));
   try {
-    const r = await apiJson("/api/answers", { method: "POST", body: item });
+    const r = await apiJson("/api/answers/batch", { method: "POST", body: { items } });
     applyServer(r);
     return { lit: r.lit };
   } catch (e) {
-    // Вход протух насовсем — дальше человек гость, ответ не теряем.
-    if (e.name === "AuthRequiredError") { setMe(null); applyAuthButton(); return recordGuestAnswer(ticket, num, q, chosen, config.unique); }
-    outboxPush(item);
-    if (!me) return { lit: false }; // первый вход и сразу без сети — считать не от чего
+    // Вход протух насовсем — дальше человек гость, ответы не теряем.
+    if (e.name === "AuthRequiredError") { setMe(null); applyAuthButton(); return guest(); }
+    for (const item of items) outboxPush(item);
     const st = me.streak, before = st.todayCount;
-    st.todayCount++;
+    st.todayCount += items.length;
     const lit = before < st.target && st.todayCount >= st.target;
     if (lit) { st.todayDone = true; st.current++; }
     setMe(me);
@@ -460,7 +453,7 @@ function carReact(kind) {
 /* Скорость дороги во время реакции — через playbackRate её CSS-анимации
    (Web Animations API): в отличие от смены animation-duration, дорога не
    перескакивает, а плавно разгоняется и тормозит. Если машина стоит (огонёк
-   погас или «приглушить фон»), на время реакции дорога всё равно едет. */
+   погас), на время реакции дорога всё равно едет. */
 let roadRaf = 0;
 function roadSpeed(curve, ms) {
   if (reducedMotion()) return;
@@ -1207,7 +1200,7 @@ async function renderGarage() {
     <div class="garage-stage">
       <div class="car garage-car" id="gCar">${preview}</div>
     </div>
-    <p class="tuning-note">Цвета и детали открываются рубежами огонька и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
+    <p class="tuning-note garage-note">Цвета и детали открываются рубежами огонька и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
     <h2 class="section-title">Номер</h2>
     <div class="g-plate">
       <label class="g-plate-field ${best < M.PLATE_AT ? "locked" : ""}">
@@ -1314,13 +1307,16 @@ function quizShell({ title, backHref = "/", backLabel = "На главную", r
   `;
 }
 
-/** Ответ в огонёк и статистику — сервер для вошедшего, localStorage гостю. */
-function recordAny(cfg, q, a, mode, ticket, num) {
-  if (me) {
-    if (ticket != null) setRunAnswer(ticket, num, a);
-    return submitAnswer(ticket, num, q, a, mode);
-  }
-  return Promise.resolve(recordGuestAnswer(ticket, num, q, a, cfg.unique));
+/** Огонёк зажёгся по итогам подхода. Рубеж (3, 7, 14… дней) — большой
+ * праздник и новинки в гараже, иначе — карточка «огонёк горит». */
+function celebrateStreak(st) {
+  const hit = M.milestone(st.current).hit;
+  if (hit) {
+    // Гараж пополняется, только если серия — новый рекорд (st.best уже с сегодняшним днём).
+    const garage = st.current >= st.best ? M.unlocksAt(hit.at) : [];
+    celebrateFinish({ kind: "perfect", streak: st.current, title: `${st.current} ${daysWord(st.current)} подряд!`,
+      sub: `Новый огонёк — ${hit.flame}${garage.length ? `. В гараже: ${garage.join(", ")}` : ""}` });
+  } else { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
 }
 
 function runQuiz(cfg, o) {
@@ -1333,6 +1329,10 @@ function runQuiz(cfg, o) {
   // Рекорд серии верных подряд сравниваем с тем, что было до этого подхода.
   const bestComboBefore = currentFacts(cfg).bestCombo || 0;
   let idx = 0, finished = false;
+  // Когда дан каждый ответ этого захода — их и засчитываем в конце. Ответы
+  // из незаконченного билета (initial) засчитываются, только если они ещё не
+  // засчитаны (o.initialPending — билет начат уже по новому правилу).
+  let answeredAt = {};
   const feedback = o.feedback !== false;
   const answeredCount = () => Object.keys(answers).length;
   const firstUnanswered = () => { const i = questions.findIndex((_, k) => !(k in answers)); return i < 0 ? 0 : i; };
@@ -1418,26 +1418,14 @@ function runQuiz(cfg, o) {
       // Новый личный рекорд — отмечаем один раз, в момент, когда его побили.
       if (combo >= 5 && combo === bestComboBefore + 1) { comboAt = idx; comboRecordAt = idx; }
     }
+    answeredAt[idx] = Date.now();
+    // В статистику ответ уйдёт только в конце подхода (showResult). Билет
+    // при этом запоминается сразу — чтобы можно было вернуться и дорешать.
     const [ticket, num] = o.ticketKey ? o.ticketKey(idx) : [null, null];
+    if (ticket != null) setRunAnswer(ticket, num, a);
     // Машина реагирует только там, где правильность и так видна: на
     // экзамене она не должна подсказывать.
     if (feedback) carReact(a === q.correct ? "ok" : "bad");
-    recordAny(cfg, q, a, o.mode, ticket, num).then(({ lit }) => {
-      const st = currentStreak(cfg);
-      if ($("tStreak")) $("tStreak").innerHTML = streakChip(st);
-      setDrive(st);
-      if (lit) {
-        // Рубеж огонька (3, 7, 14… дней) — большой праздник и новая деталь машине.
-        const hit = M.milestone(st.current).hit;
-        if (hit) {
-          // Гараж пополняется, только если серия — новый рекорд (st.best уже с сегодняшним днём).
-          const garage = st.current >= st.best ? M.unlocksAt(hit.at) : [];
-          celebrateFinish({ kind: "perfect", streak: st.current, title: `${st.current} ${daysWord(st.current)} подряд!`,
-            sub: `Новый огонёк — ${hit.flame}${garage.length ? `. В гараже: ${garage.join(", ")}` : ""}` });
-        }
-        else { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
-      }
-    });
     const after = o.onAnswer ? o.onAnswer(idx, a, answers) : null;
     if (after?.stop) return showResult();
     renderQuestion({ justAnswered: true });
@@ -1465,15 +1453,28 @@ function runQuiz(cfg, o) {
     if (finished) return;
     finished = true;
     cleanupTimer();
-    const r = o.result(answers, extra);
+    // Подход закончен — теперь его ответы идут в статистику и огонёк.
+    // Брошенный на середине подход не засчитывается вовсе.
+    const list = Object.keys(answers).map(Number)
+      .filter(i => i in answeredAt || o.initialPending)
+      .map(i => ({ q: questions[i], chosen: answers[i], mode: o.mode, at: answeredAt[i] || Date.now() }));
+    const recorded = submitAnswers(list, cfg);
+    const r = o.result(answers, extra, recorded);
     // Билет и экзамен празднуют всегда (или поддерживают при провале) — это
     // решают их result(). Мини-билет, ошибки, темы — только когда всё верно.
     const allRight = questions.every((q, i) => answers[i] === q.correct);
     const party = r.celebrate ?? (allRight ? { kind: "perfect", sub: `Все ${questions.length} верно` } : null);
     if (party) setTimeout(() => celebrateFinish(party), 250);
-    // Значки — после праздника. Вошедшему сначала дождаться сохранения итога
-    // (факты придут в ответе) или освежить /api/me, если итог не сохраняется.
-    Promise.resolve(r.saved).then(() => (me && !r.saved ? loadMe().catch(() => {}) : null))
+    // Огонёк — после праздника итога: если этот подход закрыл норму дня.
+    recorded.then(({ lit }) => {
+      const st = currentStreak(cfg);
+      if ($("tStreak")) $("tStreak").innerHTML = streakChip(st);
+      setDrive(st);
+      if (lit) setTimeout(() => celebrateStreak(st), party ? 3400 : 300);
+    });
+    // Значки — после всего. Вошедшему сначала дождаться сохранения ответов и
+    // итога (факты придут в ответе) или освежить /api/me, если итога нет.
+    Promise.all([recorded, r.saved]).then(() => (me && !r.saved ? loadMe().catch(() => {}) : null))
       .then(() => setTimeout(() => checkBadges(cfg), party ? 3600 : 400));
     $("tStage").innerHTML = r.html;
     r.bind?.($("tStage"));
@@ -1485,6 +1486,8 @@ function runQuiz(cfg, o) {
   function restart() {
     o.onRestart?.();
     answers = {};
+    answeredAt = {};
+    o.initialPending = false;
     idx = 0;
     finished = false;
     renderQuestion();
@@ -1498,7 +1501,7 @@ function runQuiz(cfg, o) {
     renderQuestion();
   });
   $("tRestart")?.addEventListener("click", () => {
-    if (answeredCount() && !finished && !confirm("Начать заново? Ответы сбросятся, статистика по вопросам останется.")) return;
+    if (answeredCount() && !finished && !confirm("Начать заново? Ответы этого захода не засчитаются.")) return;
     restart();
   });
 
@@ -1561,15 +1564,18 @@ async function renderTicket(n) {
   if (!stillOn(`/bilet/${n}`)) return;
 
   // Незаконченный билет хранится по номеру вопроса, решатель — по индексу.
-  const saved = getRun(n)?.answers || {};
+  const run = getRun(n);
+  const saved = run?.answers || {};
   const initial = {};
   questions.forEach((q, i) => { if (q.num in saved) initial[i] = saved[q.num]; });
 
   runQuiz(cfg, {
     questions, mode: "ticket", grouped: true, numbered: true, initial,
+    // Ответы, данные раньше, ещё не засчитаны — засчитаются вместе с концом билета.
+    initialPending: !!run?.deferred,
     ticketKey: i => [n, questions[i].num],
     onRestart: () => resetRun(n),
-    result(answers) {
+    result(answers, extra, recorded) {
       const byNum = {};
       questions.forEach((q, i) => { byNum[q.num] = answers[i]; });
       const v = verdict(questions, byNum);
@@ -1581,7 +1587,9 @@ async function renderTicket(n) {
       let saved = null;
       if (me) {
         resetRun(n);
-        saved = apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum } }).then(applyServer).catch(e => console.error("Итог билета не сохранился:", e));
+        // Итог — после ответов: факты в ответе сервера должны их уже учитывать.
+        saved = recorded.then(() => apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum } }))
+          .then(applyServer).catch(e => console.error("Итог билета не сохранился:", e));
       } else finishGuestRun(n, correct, v.passed);
       const nextN = n % cfg.tickets + 1;
       return {
@@ -1658,7 +1666,7 @@ async function renderExam() {
       if (mainDone && pendingExtra.length) return { wait: addExtras() };
       return null;
     },
-    result(answers, extra) {
+    result(answers, extra, recorded) {
       const timeout = !!extra.timeout;
       const reason = timeout ? "timeout" : stopReason;
       const passed = !reason;
@@ -1667,7 +1675,8 @@ async function renderExam() {
       const seconds = Math.round((Date.now() - started) / 1000);
       const items = questions.map((q, i) => i in answers ? { questionId: q.id, chosen: answers[i], block: q.block, extra: q.extra } : null).filter(Boolean);
       let saved = null;
-      if (me) saved = apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout } }).then(applyServer).catch(e => console.error("Экзамен не сохранился:", e));
+      if (me) saved = recorded.then(() => apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout } }))
+        .then(applyServer).catch(e => console.error("Экзамен не сохранился:", e));
       else recordGuestExam({ passed, reason, wrong, seconds });
       const mm = Math.floor(seconds / 60), ss = String(seconds % 60).padStart(2, "0");
       return {
