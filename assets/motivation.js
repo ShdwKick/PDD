@@ -155,10 +155,21 @@
     ] },
   ];
 
+  /* Свой текст на номерном знаке, как в Forza: открывается с 3 дней, до 8
+     символов — буквы (русские и латинские), цифры, пробел, дефис. Хранится
+     рядом с выбором машины (plate), пустая строка — чистый номер. */
+  const PLATE_AT = 3, PLATE_MAX = 8;
+  function normalizePlate(raw) {
+    if (typeof raw !== "string") return null;
+    const t = raw.toUpperCase().replace(/\s+/g, " ").trim();
+    return t.length <= PLATE_MAX && /^[A-ZА-ЯЁ0-9 -]*$/.test(t) ? t : null;
+  }
+
   /** Что открывает рубеж — для праздника и строки «следующий рубеж». */
   function unlocksAt(at) {
     const out = [];
     for (const c of CAR) for (const it of c.items) if (it.at === at) out.push(it.full);
+    if (at === PLATE_AT) out.push("свой номер");
     return out;
   }
 
@@ -172,6 +183,7 @@
       const want = saved && open.find(it => it.id === saved[c.id]);
       cfg[c.id] = want ? want.id : c.id === "paint" ? "blue" : (open[1] || open[0]).id;
     }
+    cfg.plate = (best || 0) >= PLATE_AT && saved ? normalizePlate(saved.plate) || "" : "";
     return cfg;
   }
 
@@ -185,7 +197,12 @@
       if (!it || (best || 0) < it.at) return null;
       out[c.id] = it.id;
     }
-    return out;
+    if ("plate" in raw) {
+      const t = normalizePlate(raw.plate);
+      if (t === null || (best || 0) < PLATE_AT) return null;
+      out.plate = t;
+    }
+    return Object.keys(out).length ? out : null;
   }
 
   /** Уровень огонька 0..6 — сколько рубежей взято текущей серией. */
@@ -243,7 +260,7 @@
     };
   }
 
-  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, week, records };
+  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

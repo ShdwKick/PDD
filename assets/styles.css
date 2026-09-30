@@ -561,6 +561,8 @@ a{color:inherit}
 .car .crease{stroke:var(--car-light);stroke-width:1.2;opacity:.5}
 .car .bumper{fill:#171b22}
 .car .car-plate{fill:#f5f5f2;stroke:#111;stroke-width:1}
+/* Свой номер из гаража — в поле номера слева от флага. */
+.car .plate-text{fill:#111;font-family:var(--font-dash);font-weight:800;font-size:6px;letter-spacing:.2px;text-anchor:middle}
 .car .car-flag{fill:#1c57c6}
 .car .tail{fill:var(--tail);transition:fill .15s}
 .car .brake-glow{opacity:0;transition:opacity .15s}
@@ -600,7 +602,9 @@ a{color:inherit}
 @keyframes car-hop{20%{transform:translateY(-10px)}40%{transform:none}60%{transform:translateY(-6px)}80%{transform:none}}
 
 @media (max-width:40rem){
-  .car{width:84px;bottom:28px}
+  /* На телефоне машина в полтора раза крупнее (было 84 px) и ближе к центру
+     полосы — чтобы не упиралась в край экрана и номер хоть как-то читался. */
+  .car{width:126px;bottom:28px;left:calc(50% + 72px)}
 }
 @media (prefers-reduced-motion: reduce){
   .car svg,.car.ok svg,.car.bad svg,.car.lit svg{animation:none!important}
@@ -832,6 +836,19 @@ a.lamp:hover{filter:brightness(1.1)}
 .rubezh-link{margin-left:8px;font-weight:600;color:var(--text);text-decoration:none;white-space:nowrap}
 .rubezh-link::after{content:" →"}
 .rubezh-link:hover{text-decoration:underline}
+
+/* Поле номера в гараже — само похоже на номерной знак, как плашки билетов. */
+.g-plate{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-plate-field{display:flex;align-items:stretch;height:52px;border:2.5px solid #111;border-radius:7px;background:#f5f5f2;overflow:hidden;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.g-plate-field input{width:9.2em;border:0;outline:0;background:transparent;padding:0 12px;
+  font-family:var(--font-dash);font-weight:800;font-size:24px;letter-spacing:.06em;text-transform:uppercase;color:#111;text-align:center}
+.g-plate-field input::placeholder{color:#9aa1a9;font-size:16px;letter-spacing:0;text-transform:none}
+.g-plate-field:focus-within{outline:2px solid var(--text);outline-offset:3px}
+.g-plate-rus{display:grid;place-items:end center;padding:0 8px 6px;border-left:2px solid #111;font:700 10px/1 var(--font);letter-spacing:.06em;color:#111;
+  background:linear-gradient(#fff 0 33%,#1c57c6 33% 66%,#d52b1e 66%) 50% 9px/18px 12px no-repeat,#f5f5f2;box-shadow:inset 0 0 0 0 transparent}
+.g-plate-field.locked{opacity:.5}
+.g-plate-hint{flex:1 1 220px;font-size:12.5px;line-height:1.4;color:var(--text-2)}
+.g-plate-hint .g-lock{margin-right:6px}
 
 /* ---- рубеж огонька под пламенем ---- */
 .rubezh{display:flex;flex-direction:column;gap:5px}

@@ -197,7 +197,7 @@ const ago = k => addDays(today, -k);
   eq("значки: экзамена не было — «Сдал!» нет", got.includes("exam1"), false);
   const w = M.week(f);
   eq("неделя: 3 дня, два прошлых — из переноса", [w.n, w.doneDays], [66, 3]);
-  eq("рубеж: 3 дня взят, следующий 7, в гараже — белый кузов и полосы", [M.milestone(3).hit.at, M.milestone(3).next.at, M.unlocksAt(3)], [3, 7, ["белый кузов", "гоночные полосы"]]);
+  eq("рубеж: 3 дня взят, следующий 7, в гараже — белый кузов и полосы", [M.milestone(3).hit.at, M.milestone(3).next.at, M.unlocksAt(3)], [3, 7, ["белый кузов", "гоночные полосы", "свой номер"]]);
   const r0 = M.readiness(f);
   eq("готовность: без экзаменов не «готов», шаг — экзамен", [r0.ready, r0.steps.some(x => x.href === "/ekzamen")], [false, true]);
   const full = { ...f, learned: f.total, exams: { ...f.exams, count: 3, passStreak: 3, recent: [{ passed: true }, { passed: true }, { passed: true }] } };
@@ -211,13 +211,18 @@ const ago = k => addDays(today, -k);
   const s = fresh();
   withDays(s, "g", { [ago(3)]: 20, [ago(2)]: 20, [ago(1)]: 20 });
   const m = s.me("g", TZ);
-  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none" });
+  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none", plate: "" });
   eq("открытый белый кузов — можно", s.setCar("g", { paint: "white" }), { car: { paint: "white" } });
   eq("красный (30 дней) — ещё закрыт", s.setCar("g", { paint: "red" }), null);
   eq("мусор — нет", s.setCar("g", { paint: "pink" }), null);
   s.setCar("g", { stripes: "none" });
   eq("выбор дописывается и приходит в /api/me", s.me("g", TZ).car, { paint: "white", stripes: "none" });
   eq("снятые полосы остаются снятыми", M.carConfig(s.me("g", TZ).car, 3).stripes, "none");
+  eq("свой номер с 3 дней — сохраняется заглавными", s.setCar("g", { plate: "ане 77" })?.car.plate, "АНЕ 77");
+  eq("номер длиннее 8 символов — нет", s.setCar("g", { plate: "123456789" }), null);
+  eq("номер со спецсимволами — нет", s.setCar("g", { plate: "<b>hi" }), null);
+  const s2 = fresh();
+  eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
 }
 
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");

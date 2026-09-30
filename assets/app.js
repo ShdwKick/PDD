@@ -377,8 +377,19 @@ function setDrive(st) {
 const savedCar = () => (me ? me.car : getLocalCar()) || null;
 const currentCar = st => M.carConfig(savedCar(), st?.best || 0);
 function applyCar(el, car) {
-  for (const c of [...el.classList]) if (c.startsWith("car-") && c !== "car-plate") el.classList.remove(c);
-  for (const [k, v] of Object.entries(car)) el.classList.add(`car-${k}-${v}`);
+  for (const c of [...el.classList]) if (c.startsWith("car-")) el.classList.remove(c);
+  for (const [k, v] of Object.entries(car)) if (k !== "plate") el.classList.add(`car-${k}-${v}`);
+  setPlateText(el, car.plate);
+}
+
+/** Текст на номере: до 5 символов — как есть, длиннее — ужимаем в ширину
+ * поля номера (без флага), чтобы 8 символов влезали. */
+function setPlateText(el, text) {
+  const t = el.querySelector(".plate-text");
+  if (!t) return;
+  t.textContent = text || "";
+  if (text && text.length > 5) { t.setAttribute("textLength", "28"); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+  else { t.removeAttribute("textLength"); t.removeAttribute("lengthAdjust"); }
 }
 
 /** Реакция машины на ответ: ok — газует, bad — тормозит и заносит,
@@ -1146,6 +1157,17 @@ async function renderGarage() {
       <div class="car garage-car" id="gCar">${preview}</div>
     </div>
     <p class="tuning-note">Цвета и детали открываются рубежами огонька и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
+    <h2 class="section-title">Номер</h2>
+    <div class="g-plate">
+      <label class="g-plate-field ${best < M.PLATE_AT ? "locked" : ""}">
+        <input id="gPlate" type="text" maxlength="${M.PLATE_MAX}" autocomplete="off" autocapitalize="characters" spellcheck="false"
+          placeholder="${best < M.PLATE_AT ? "" : "Ваш текст"}" aria-label="Текст на номере, до ${M.PLATE_MAX} символов" ${best < M.PLATE_AT ? "disabled" : ""}>
+        <span class="g-plate-rus" aria-hidden="true">RUS</span>
+      </label>
+      <span class="g-plate-hint">${best < M.PLATE_AT
+        ? `<span class="g-lock">${lockIcon}${M.PLATE_AT} ${daysWord(M.PLATE_AT)}</span> Свой номер откроется за ${M.PLATE_AT} ${daysWord(M.PLATE_AT)} огонька подряд`
+        : `До ${M.PLATE_MAX} символов: буквы, цифры, пробел, дефис. Пусто — чистый номер.`}</span>
+    </div>
     ${M.CAR.map(c => `
       <h2 class="section-title">${esc(c.name)}</h2>
       <div class="garage-opts" data-cat="${c.id}">
@@ -1173,22 +1195,37 @@ async function renderGarage() {
   view.querySelector(".garage-stage").addEventListener("click", () => {
     const g = $("gCar"); g.classList.remove("lit"); void g.offsetWidth; g.classList.add("lit");
   });
+  // Сразу у себя (и на случай без сети — в localStorage), потом на сервер.
+  const save = choice => {
+    setLocalCar(choice);
+    if (me) {
+      me.car = { ...(me.car || {}), ...choice };
+      setMe(me);
+      apiJson("/api/me/car", { method: "PUT", body: { car: choice } })
+        .then(r => { me.car = r.car; setMe(me); })
+        .catch(e => console.error("Выбор машины не сохранился:", e));
+    }
+  };
+  const hop = () => { const g = $("gCar"); g.classList.remove("lit"); void g.offsetWidth; g.classList.add("lit"); };
   for (const b of view.querySelectorAll(".g-opt:not([disabled])")) {
-    b.addEventListener("click", async () => {
-      const choice = { [b.dataset.cat]: b.dataset.id };
-      // Сразу у себя (и на случай без сети — в localStorage), потом на сервер.
-      setLocalCar(choice);
-      if (me) {
-        me.car = { ...(me.car || {}), ...choice };
-        setMe(me);
-        apiJson("/api/me/car", { method: "PUT", body: { car: choice } })
-          .then(r => { me.car = r.car; setMe(me); })
-          .catch(e => console.error("Выбор машины не сохранился:", e));
-      }
-      paint();
-      const g = $("gCar"); g.classList.remove("lit"); void g.offsetWidth; g.classList.add("lit");
-    });
+    b.addEventListener("click", () => { save({ [b.dataset.cat]: b.dataset.id }); paint(); hop(); });
   }
+
+  // Номер: лишние символы отбрасываем прямо при вводе, на машине — сразу,
+  // сохраняем, когда перестали печатать.
+  const plate = $("gPlate");
+  plate.value = currentCar(st).plate;
+  let plateTimer = 0;
+  plate.addEventListener("input", () => {
+    const clean = plate.value.toUpperCase().replace(/[^A-ZА-ЯЁ0-9 -]/g, "").slice(0, M.PLATE_MAX);
+    if (clean !== plate.value) plate.value = clean;
+    const text = M.normalizePlate(clean) ?? "";
+    setPlateText($("gCar"), text);
+    setPlateText($("car"), text);
+    clearTimeout(plateTimer);
+    plateTimer = setTimeout(() => save({ plate: text }), 600);
+  });
+  plate.addEventListener("change", () => { clearTimeout(plateTimer); save({ plate: M.normalizePlate(plate.value) ?? "" }); hop(); });
 }
 
 /* ---------- решатель ----------
