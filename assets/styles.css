@@ -911,3 +911,49 @@ a.lamp:hover{filter:brightness(1.1)}
 @media (prefers-reduced-motion: reduce){
   .car .p-glow,.car.up-fire .exhaust,.medal.pop{animation:none!important}
 }
+
+/* ---- уровни огонька (flameSvg в app.js, как серия в TikTok) ----
+   Растёт язычок, с 7 дней — боковые языки и ореол, дальше меняется цвет
+   (цвета — в FLAME_TIERS в app.js). Ореол — цвет искр уровня. */
+.flame{--in:.52}
+.flame[data-tier="1"],.flame[data-tier="2"]{--in:.58}
+.flame[data-tier="3"],.flame[data-tier="4"],.flame[data-tier="5"],.flame[data-tier="6"]{--in:.64}
+.flame .inner{transform:scale(var(--in))}
+.flame[data-state="lit"] .inner{animation-name:flicker-in-tier}
+@keyframes flicker-in-tier{
+  0%,100%{transform:scale(var(--in),var(--in))}
+  40%{transform:scale(calc(var(--in) * .92),calc(var(--in) * 1.12)) skewX(-2deg)}
+  70%{transform:scale(calc(var(--in) * 1.06),calc(var(--in) * .94)) skewX(2deg)}
+}
+.flame .sparks b{background:var(--spark,#ffcc00)}
+.flame .tongue{transform-box:fill-box;transform-origin:50% 100%;opacity:.9}
+.flame .tongue.l{transform:translate(-4.8px,1.5px) rotate(-24deg) scale(.46,.52)}
+.flame .tongue.r{transform:translate(4.8px,1.5px) rotate(24deg) scale(.46,.52)}
+.flame[data-state="lit"] .tongue.l{animation:tongue-l 1.5s ease-in-out infinite}
+.flame[data-state="lit"] .tongue.r{animation:tongue-r 1.7s ease-in-out .3s infinite}
+@keyframes tongue-l{50%{transform:translate(-4.8px,1.5px) rotate(-30deg) scale(.42,.6)}}
+@keyframes tongue-r{50%{transform:translate(4.8px,1.5px) rotate(30deg) scale(.42,.6)}}
+.flame[data-state="ember"] .tongue,.flame[data-state="out"] .tongue{display:none}
+.flame::before{content:"";position:absolute;inset:-35%;border-radius:50%;background:radial-gradient(circle,var(--spark) 0%,transparent 62%);opacity:0;pointer-events:none}
+.flame[data-state="lit"][data-tier="2"]::before,.flame[data-state="lit"][data-tier="3"]::before{opacity:.22}
+.flame[data-state="lit"][data-tier="4"]::before{opacity:.32}
+.flame[data-state="lit"][data-tier="5"]::before,.flame[data-state="lit"][data-tier="6"]::before{opacity:.42;animation:halo 2.2s ease-in-out infinite alternate}
+@keyframes halo{from{transform:scale(.85);opacity:.28}to{transform:scale(1.1);opacity:.5}}
+/* С синего пламени искры летят и у маленьких огоньков — в шапке и у друзей. */
+.flame[data-state="lit"][data-tier="4"] .sparks b,.flame[data-state="lit"][data-tier="5"] .sparks b,.flame[data-state="lit"][data-tier="6"] .sparks b{animation:spark-rise 2.2s ease-out var(--t) infinite}
+.flame:not(.big) .sparks b{width:2px;height:2px}
+.flame:not(.big) .sparks{transform:scale(.45);transform-origin:50% 50%}
+
+.flame-tier{display:inline-block;margin-left:8px;vertical-align:3px;font-family:var(--font);font-style:normal;font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.flame-tier[data-tier="4"],.flame-tier[data-tier="5"]{color:#2f8cff}
+.flame-tier[data-tier="6"]{color:#b43cff}
+
+.tuning li{flex-direction:row;align-items:center;gap:10px}
+.tuning li .flame{width:30px;height:30px}
+.tuning li:not(.on) .flame{filter:grayscale(1);opacity:.45}
+.tn-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tn-text span{font-size:12px;line-height:1.3}
+
+@media (prefers-reduced-motion: reduce){
+  .flame .tongue,.flame::before{animation:none!important}
+}

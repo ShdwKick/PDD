@@ -425,21 +425,51 @@ function roadSpeed(curve, ms) {
   roadRaf = requestAnimationFrame(tick);
 }
 
+/* Уровни огонька — как серия в TikTok: чем дольше горит, тем богаче пламя.
+   Уровень = сколько рубежей (M.MILESTONES: 3/7/14/30/50/100 дней) взято
+   текущей серией. До 14 дней пламя растёт в том же красно-жёлтом огне
+   (больше язычок, потом боковые языки и ореол), дальше меняет цвет: белое
+   ядро, синее пламя, сияющее синее, фиолетовое «легендарное». Погасла серия —
+   с ней и уровень. Цвета: [основание, середина, верх] внешнего пламени и
+   [низ, верх] внутреннего; spark — цвет искр. */
+const FLAME_TIERS = [
+  { o: ["#e0241b", "#ff6a1a", "#ffcc00"], i: ["#ffd60a", "#fff6c2"], spark: "#ffcc00" },
+  { o: ["#e0241b", "#ff6a1a", "#ffcc00"], i: ["#ffd60a", "#fff6c2"], spark: "#ffcc00" },
+  { o: ["#e0171b", "#ff5a1a", "#ffd60a"], i: ["#ffe45c", "#fffbe6"], spark: "#ffd60a" },
+  { o: ["#e0171b", "#ff5a1a", "#ffd60a"], i: ["#8fdcff", "#ffffff"], spark: "#bff0ff" },
+  { o: ["#1f3fe0", "#2f8cff", "#8fe3ff"], i: ["#d6f6ff", "#ffffff"], spark: "#8fe3ff" },
+  { o: ["#1437d6", "#1f9bff", "#a8f0ff"], i: ["#e6fbff", "#ffffff"], spark: "#c8f6ff" },
+  { o: ["#5b12e8", "#b43cff", "#ff8ae0"], i: ["#ffe1f7", "#ffffff"], spark: "#ffb3ec" },
+];
+
 let flameUid = 0;
-function flameSvg(state, cls = "") {
+/** streak — текущая серия: от неё уровень пламени. Без неё — базовый огонёк. */
+function flameSvg(state, cls = "", streak = 0) {
   const id = `fl${flameUid++}`;
-  return `<span class="flame ${cls}" data-state="${state}" aria-hidden="true">
+  const tier = state === "out" ? 0 : M.flameTier(streak);
+  const t = FLAME_TIERS[tier];
+  // Боковые языки — с «двойного пламени» (7 дней): та же фигура, меньше и наклонена.
+  const tongues = tier >= 2
+    ? `<path class="tongue l" d="${FLAME_PATH}" fill="url(#${id}o)"/><path class="tongue r" d="${FLAME_PATH}" fill="url(#${id}o)"/>` : "";
+  return `<span class="flame ${cls}" data-state="${state}" data-tier="${tier}" style="--spark:${t.spark}" aria-hidden="true">
     <svg viewBox="0 0 24 24">
       <defs>
-        <linearGradient id="${id}o" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e0241b"/><stop offset=".6" stop-color="#ff6a1a"/><stop offset="1" stop-color="#ffcc00"/></linearGradient>
-        <linearGradient id="${id}i" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffd60a"/><stop offset="1" stop-color="#fff6c2"/></linearGradient>
+        <linearGradient id="${id}o" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.o[0]}"/><stop offset=".6" stop-color="${t.o[1]}"/><stop offset="1" stop-color="${t.o[2]}"/></linearGradient>
+        <linearGradient id="${id}i" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.i[0]}"/><stop offset="1" stop-color="${t.i[1]}"/></linearGradient>
       </defs>
+      ${tongues}
       <path class="outer" d="${FLAME_PATH}" fill="url(#${id}o)"/>
       <path class="inner" d="${FLAME_PATH}" fill="url(#${id}i)"/>
-      <circle class="coal" cx="12" cy="17.5" r="3"/>
+      <circle class="coal" cx="12" cy="17.5" r="3" style="fill:${t.o[0]}"/>
     </svg>
     <i class="sparks">${"<b></b>".repeat(6)}</i>
   </span>`;
+}
+
+/** Название уровня пламени — под заголовком серии. */
+function flameTierName(streak) {
+  const tier = M.flameTier(streak);
+  return tier ? M.MILESTONES[tier - 1].flame : "";
 }
 
 const daysWord = n => plural(n, "день", "дня", "дней");
@@ -472,7 +502,7 @@ function streakFooter(st, plan) {
   }
   const ms = M.milestone(st.current || 0);
   const rubezh = ms.next ? `<div class="rubezh" title="Детали держатся, пока горит огонёк">
-      <span>Рубеж <b>${ms.next.at} ${daysWord(ms.next.at)}</b> — машине ${esc(ms.next.name)}${st.current ? ` · ещё ${ms.left} ${daysWord(ms.left)}` : ""}</span>
+      <span>Рубеж <b>${ms.next.at} ${daysWord(ms.next.at)}</b> — ${esc(ms.next.flame)} и ${esc(ms.next.name)}${st.current ? ` · ещё ${ms.left} ${daysWord(ms.left)}` : ""}</span>
       <i class="rubezh-bar" style="--p:${(ms.progress * 100).toFixed(0)}%"></i>
     </div>` : "";
   return `<div class="streak-foot">
@@ -498,9 +528,9 @@ function streakBlock(st) {
   // Шкала нормы — сегменты, как указатель топлива: 10 делений по 2 вопроса.
   const segs = 10, filled = Math.min(segs, Math.floor(st.todayCount / st.target * segs));
   return `<div class="streak" data-state="${state}">
-    ${flameSvg(state, "big")}
+    ${flameSvg(state, "big", st.current)}
     <div class="streak-text">
-      <p class="streak-title">${title}</p>
+      <p class="streak-title">${title}${st.current && flameTierName(st.current) ? `<span class="flame-tier" data-tier="${M.flameTier(st.current)}">${esc(flameTierName(st.current))}</span>` : ""}</p>
       <p class="streak-hint">${hint}</p>
       <div class="fuel" role="img" aria-label="Сегодня ${st.todayCount} из ${st.target} вопросов">
         ${Array.from({ length: segs }, (_, i) => `<i class="${i < filled ? "on" : ""}"></i>`).join("")}
@@ -517,7 +547,7 @@ function streakChip(st) {
   const label = state === "lit" ? `Огонёк горит, ${st.current} ${daysWord(st.current)} подряд`
     : `Сегодня ${st.todayCount} из ${st.target} вопросов`;
   return `<span class="streak-chip" data-state="${state}" title="${label}" aria-label="${label}">
-    ${flameSvg(state)}<b>${state === "lit" || st.current ? st.current : `${st.todayCount}/${st.target}`}</b>
+    ${flameSvg(state, "", st.current)}<b>${state === "lit" || st.current ? st.current : `${st.todayCount}/${st.target}`}</b>
   </span>`;
 }
 
@@ -529,7 +559,7 @@ function celebrateLit(st) {
   el.className = "lit-toast";
   el.setAttribute("role", "status");
   el.innerHTML = `
-    ${flameSvg("lit", "igniting")}
+    ${flameSvg("lit", "igniting", st.current)}
     <div>
       <p class="lt-title">Огонёк горит!</p>
       <p class="lt-days"><span class="odo"><span class="odo-roll"><b>${st.current - 1}</b><b>${st.current}</b></span></span> ${daysWord(st.current)} подряд</p>
@@ -780,7 +810,7 @@ function friendRow(f) {
   }
   const days = f.started && f.streak.current ? `${f.streak.current} ${daysWord(f.streak.current)} подряд` : "огонёк не горит";
   return `<li class="friend" data-state="${flame}">
-    ${flameSvg(flame)}
+    ${flameSvg(flame, "", f.started ? f.streak.current : 0)}
     <span class="f-main"><b>${esc(f.name)}</b><span class="f-days">${f.started ? days : ""}</span>${line}</span>
     <span class="f-act">${action}</span>
   </li>`;
@@ -871,7 +901,7 @@ const flagSvg = `<svg class="fo-flag" viewBox="0 0 64 48" aria-hidden="true">
 </svg>`;
 
 /** Праздник в конце: kind — perfect | pass | fail. Сам уходит через ~3 с. */
-function celebrateFinish({ kind, sub = "", title = null }) {
+function celebrateFinish({ kind, sub = "", title = null, streak = null }) {
   document.querySelector(".finish-overlay")?.remove();
   const good = kind !== "fail";
   const el = document.createElement("div");
@@ -883,7 +913,7 @@ function celebrateFinish({ kind, sub = "", title = null }) {
   el.innerHTML = `
     <div class="fo-confetti" aria-hidden="true">${confetti}</div>
     <div class="fo-card">
-      <div class="fo-icons">${good ? flagSvg : ""}${flameSvg(good ? "lit" : "ember", "fo-flame")}</div>
+      <div class="fo-icons">${good ? flagSvg : ""}${flameSvg(good ? "lit" : "ember", "fo-flame", streak ?? (config ? currentStreak(config).current : 0))}</div>
       <h2>${esc(title || pickOne(FINISH[kind]))}</h2>
       ${sub ? `<p>${esc(sub)}</p>` : ""}
     </div>`;
@@ -1066,10 +1096,10 @@ async function renderBadges() {
     <ul class="badge-grid">
       ${all.map(b => `<li class="badge-cell ${b.got ? "got" : ""}">${medal(b)}<b>${esc(b.title)}</b><span>${esc(b.desc)}</span>${b.got ? "" : `<i class="bs-bar" style="--p:${(b.progress * 100).toFixed(0)}%"></i>`}</li>`).join("")}
     </ul>
-    <h2 class="section-title">Тюнинг машины</h2>
-    <p class="tuning-note">Каждый рубеж огонька добавляет машине деталь. Детали держатся, пока горит серия: пропустили день без заморозки — машина снова без тюнинга.</p>
+    <h2 class="section-title">Рубежи огонька</h2>
+    <p class="tuning-note">Каждый рубеж меняет огонёк и добавляет машине деталь. Всё это держится, пока горит серия: пропустили день без заморозки — огонёк и машина начинают сначала.</p>
     <ul class="tuning">
-      ${M.MILESTONES.map(m => `<li class="${f.streak.current >= m.at ? "on" : ""}"><b>${m.at} ${daysWord(m.at)}</b><span>${esc(m.name)}</span></li>`).join("")}
+      ${M.MILESTONES.map(m => `<li class="${f.streak.current >= m.at ? "on" : ""}">${flameSvg("lit", "", m.at)}<span class="tn-text"><b>${m.at} ${daysWord(m.at)}</b><span>${esc(m.flame)}</span><span>машине — ${esc(m.name)}</span></span></li>`).join("")}
     </ul>`;
   checkBadges(cfg);
 }
@@ -1187,7 +1217,7 @@ function runQuiz(cfg, o) {
           ${chosen === q.correct
             ? `Верно<span class="v-praise">${esc(praise[idx] || "")}</span>${justAnswered ? `<span class="plus-one" aria-hidden="true">+1</span>` : ""}`
             : `Неверно — правильный ответ ${q.correct + 1}<span class="v-praise">${esc(praise[idx] || "")}</span>`}
-          ${justAnswered && comboAt === idx ? `<span class="combo-chip">${flameSvg("lit")}${combo} подряд!${comboRecordAt === idx ? " Рекорд!" : ""}</span>` : ""}
+          ${justAnswered && comboAt === idx ? `<span class="combo-chip">${flameSvg("lit", "", currentStreak(cfg).current)}${combo} подряд!${comboRecordAt === idx ? " Рекорд!" : ""}</span>` : ""}
         </div>
         ${q.tip ? `<div class="tip"><p>${esc(q.tip)}</p>${q.ref ? `<p class="ref">${esc(q.ref)}</p>` : ""}</div>` : ""}` : ""}
       ${answered && feedback ? `<div class="qnav"><button type="button" class="btn primary" id="tNext">${isLast ? "Итог" : "Дальше"}</button></div>` : ""}
@@ -1224,7 +1254,7 @@ function runQuiz(cfg, o) {
       if (lit) {
         // Рубеж огонька (3, 7, 14… дней) — большой праздник и новая деталь машине.
         const hit = M.milestone(st.current).hit;
-        if (hit) celebrateFinish({ kind: "perfect", title: `${st.current} ${daysWord(st.current)} подряд!`, sub: `Рубеж взят — машине ${hit.name}` });
+        if (hit) celebrateFinish({ kind: "perfect", streak: st.current, title: `${st.current} ${daysWord(st.current)} подряд!`, sub: `Новый огонёк — ${hit.flame}, машине — ${hit.name}` });
         else { celebrateLit(st); setTimeout(() => carReact("lit"), 700); }
       }
     });

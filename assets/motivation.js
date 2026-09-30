@@ -105,14 +105,20 @@
   /* ---------- рубежи огонька и тюнинг машины ----------
      Детали держатся, пока горит серия: погас огонёк — машина снова «стоковая».
      Это и есть смысл: есть что терять. */
+  // flame — как выглядит огонёк с этого рубежа (как в TikTok: серия растёт —
+  // пламя становится больше, потом меняет цвет). Уровень пламени = номер
+  // рубежа, см. flameTier(); вёрстка уровней — flameSvg() в app.js.
   const MILESTONES = [
-    { at: 3, part: "stripes", name: "гоночные полосы" },
-    { at: 7, part: "spoiler", name: "спойлер" },
-    { at: 14, part: "glow", name: "неоновая подсветка" },
-    { at: 30, part: "red", name: "красный кузов" },
-    { at: 50, part: "fire", name: "пламя из выхлопа" },
-    { at: 100, part: "gold", name: "золотой кузов" },
+    { at: 3, part: "stripes", name: "гоночные полосы", flame: "пламя разгорается" },
+    { at: 7, part: "spoiler", name: "спойлер", flame: "двойное пламя" },
+    { at: 14, part: "glow", name: "неоновая подсветка", flame: "раскалённое ядро" },
+    { at: 30, part: "red", name: "красный кузов", flame: "синее пламя" },
+    { at: 50, part: "fire", name: "пламя из выхлопа", flame: "сияющее синее пламя" },
+    { at: 100, part: "gold", name: "золотой кузов", flame: "легендарное пламя" },
   ];
+
+  /** Уровень огонька 0..6 — сколько рубежей взято текущей серией. */
+  const flameTier = current => MILESTONES.filter(m => (current || 0) >= m.at).length;
 
   function milestone(current) {
     const reached = MILESTONES.filter(m => current >= m.at);
@@ -167,7 +173,7 @@
     };
   }
 
-  const M = { readiness, badges, BADGES, milestone, MILESTONES, week, records };
+  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, week, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);
