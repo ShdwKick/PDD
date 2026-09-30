@@ -1062,10 +1062,9 @@ function motivBlock(f) {
   const next = all.filter(b => !b.got).sort((a, b) => b.progress - a.progress)[0];
   const delta = w.delta === null ? "" : w.delta >= 0
     ? `<em class="up">+${w.delta}% к прошлой</em>` : `<em class="down">${w.delta}% к прошлой</em>`;
-  const dots = Array.from({ length: 7 }, (_, i) => {
-    const key = addDaysKey(f.today, i - 6), d = f.days[key];
-    return `<i class="${d?.done ? "on" : d ? "part" : ""}" title="${shortDay(key)}"></i>`;
-  }).join("");
+  // Счётчик «дней с нормой»: заполняется справа налево — сколько дней за
+  // неделю норма выполнена, столько точек горит от правого края.
+  const dots = Array.from({ length: 7 }, (_, i) => `<i class="${i >= 7 - w.doneDays ? "on" : ""}"></i>`).join("");
   const strip = recent.length
     ? recent.map(b => `<span class="bs-item" title="${esc(b.title)}">${medal(b)}</span>`).join("")
     : `<span class="bs-empty">Первый значок — за первый ответ</span>`;
