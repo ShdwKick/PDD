@@ -1029,7 +1029,14 @@ function readyBlock(f) {
   const steps = r.steps.map(x => x.href
     ? `<a class="btn-mini" href="${x.href}" data-link>${esc(x.text)}</a>`
     : `<span class="ready-step">${esc(x.text)}</span>`).join("");
-  const exams = r.examsN ? ` · сдано ${r.passes} из ${r.examsN} ${plural(r.examsN, "последнего экзамена", "последних экзаменов", "последних экзаменов")}` : "";
+  // Из чего складывается процент — прямо под полосой: иначе «готовность 8%»
+  // рядом с «выучено 11%» выглядит ошибкой. Вклад экзаменов точный (по 6% за
+  // каждый сданный из пяти), вклад вопросов — остаток: в сумме ровно r.pct.
+  const partE = r.passes * 6, partQ = r.pct - partE;
+  const parts = `<p class="ready-parts">
+      <span><b>${partQ}%</b> из 70 — вопросы: выучено ${r.know}%</span>
+      <span><b>${partE}%</b> из 30 — экзамены: сдано ${r.passes} из 5 последних</span>
+    </p>`;
   return `<div class="ready" data-ready="${r.ready}">
     <div class="ready-head">
       <span class="ready-label">Готовность к экзамену</span>
@@ -1039,7 +1046,8 @@ function readyBlock(f) {
       ${Array.from({ length: segs }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}
       <em class="ready-goal" title="Цель — 90%"></em>
     </div>
-    <p class="ready-level"><b>${esc(r.level)}</b> · выучено ${r.know}% вопросов${exams}</p>
+    <p class="ready-level"><b>${esc(r.level)}</b>${r.ready ? "" : " · цель — 90% и три экзамена подряд"}</p>
+    ${parts}
     ${steps ? `<div class="ready-steps">${steps}</div>` : ""}
   </div>`;
 }

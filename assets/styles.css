@@ -1036,3 +1036,7 @@ a.lamp:hover{filter:brightness(1.1)}
 
 /* Подпись под машиной в гараже — во всю ширину сцены, по центру. */
 .garage-note{max-width:none;margin-top:10px;text-align:center}
+
+/* Из чего складывается готовность: две строки под полосой. */
+.ready-parts{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:12px;line-height:1.35;color:var(--text-2)}
+.ready-parts b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:13px;color:var(--ink)}
