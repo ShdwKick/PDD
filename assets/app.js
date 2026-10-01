@@ -1039,8 +1039,8 @@ function readyBlock(f) {
       <button type="button" class="hint-btn" aria-label="Как считается готовность" aria-describedby="readyHint">?</button>
       <span class="hint-pop" role="tooltip" id="readyHint">
         <b>Как считается готовность</b>
-        <span class="hint-row"><b>${partQ}%</b> из 70 — вопросы: выучено ${r.know}% (вопрос выучен, если последний ответ на него верный)</span>
-        <span class="hint-row"><b>${partE}%</b> из 30 — экзамены: сдано ${r.passes} из 5 последних, по 6% за каждый</span>
+        <span class="hint-row"><b>${partQ}%</b> из 70% — вопросы: выучено ${r.know}%</span>
+        <span class="hint-row"><b>${partE}%</b> из 30% — экзамены: сдано ${r.passes} из 5 последних</span>
         <span class="hint-row">«Готовы к ГАИ» — когда выучено 90% вопросов и три последних экзамена сданы подряд.</span>
       </span>
     </span>`;
