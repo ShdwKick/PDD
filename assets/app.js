@@ -851,8 +851,8 @@ async function loadFriends() {
   if (others.length && mine > 0 && $("weekRank")) {
     const place = 1 + others.filter(n => n > mine).length;
     $("weekRank").textContent = place === 1
-      ? "Больше всех среди друзей за 7 дней"
-      : `${place}-е место среди друзей за 7 дней`;
+      ? "Больше всех среди друзей за неделю"
+      : `${place}-е место среди друзей за неделю`;
   }
 }
 
@@ -1084,17 +1084,16 @@ function motivBlock(f) {
   const recent = [...got].sort((a, b) => order(b.id) - order(a.id)).slice(0, 5);
   const next = all.filter(b => !b.got).sort((a, b) => b.progress - a.progress)[0];
   const delta = w.delta === null ? "" : w.delta >= 0
-    ? `<em class="up">+${w.delta}% к прошлой</em>` : `<em class="down">${w.delta}% к прошлой</em>`;
-  // «Дни с нормой» — последние 7 дней, сегодня справа, у каждой точки буква
-  // дня недели: без подписей точки читались как неделя с понедельника, и
-  // среда казалась субботой. Горит — норма выполнена, бледная — что-то
-  // решали, но норму не закрыли.
-  const LETTERS = ["В", "П", "В", "С", "Ч", "П", "С"]; // getUTCDay(): 0 — воскресенье
-  const dots = Array.from({ length: 7 }, (_, i) => {
-    const key = addDaysKey(f.today, i - 6), d = f.days[key];
-    const wd = new Date(key + "T00:00:00Z").getUTCDay();
-    return `<span class="w-day ${i === 6 ? "today" : ""}" title="${shortDay(key)}${d?.done ? " — норма выполнена" : ""}">
-      <i class="${d?.done ? "on" : d ? "part" : ""}"></i><small>${LETTERS[wd]}</small></span>`;
+    ? `<em class="up">+${w.delta}% к прошлой неделе</em>` : `<em class="down">${w.delta}% к прошлой неделе</em>`;
+  // «Дни с нормой» — календарная неделя с понедельника, у каждой точки буква
+  // дня. Горит — норма выполнена, бледная — решали, но норму не закрыли;
+  // впереди — ещё не наступившие дни.
+  const LETTERS = ["П", "В", "С", "Ч", "П", "С", "В"];
+  const dots = LETTERS.map((letter, i) => {
+    const key = addDaysKey(w.monday, i), d = f.days[key];
+    const when = key === f.today ? "today" : key > f.today ? "future" : "";
+    return `<span class="w-day ${when}" title="${shortDay(key)}${d?.done ? " — норма выполнена" : ""}">
+      <i class="${d?.done ? "on" : d ? "part" : ""}"></i><small>${letter}</small></span>`;
   }).join("");
   const strip = recent.length
     ? recent.map(b => `<span class="bs-item" title="${esc(b.title)}">${medal(b)}</span>`).join("")
@@ -1103,7 +1102,7 @@ function motivBlock(f) {
   return `
     <h2 class="section-title">Неделя</h2>
     <div class="week card">
-      <div class="w-tile"><b>${w.n}</b><span>${plural(w.n, "вопрос", "вопроса", "вопросов")} за 7 дней</span>${delta}</div>
+      <div class="w-tile"><b>${w.n}</b><span>${plural(w.n, "вопрос", "вопроса", "вопросов")} за неделю</span>${delta}</div>
       <div class="w-tile"><b>${w.accuracy === null ? "—" : w.accuracy + "%"}</b><span>ответов верно</span></div>
       <div class="w-tile"><b>${w.doneDays}<small>/7</small></b><span>дней с нормой</span><span class="w-dots">${dots}</span></div>
       <div class="w-tile"><b>${w.bestDay ? w.bestDay.n : 0}</b><span>лучший день${w.bestDay ? ` · ${shortDay(w.bestDay.day)}` : ""}</span></div>

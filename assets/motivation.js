@@ -221,25 +221,35 @@
   }
 
   /* ---------- неделя и рекорды ----------
-     Неделя — скользящие 7 дней, включая сегодня, против 7 дней до них: так
-     в понедельник не обнуляется всё, что было в выходные. */
+     Неделя — календарная, с понедельника по сегодня. Сравнение — с тем же
+     отрезком прошлой недели (пн–чт против пн–чт): иначе в начале недели она
+     всегда выглядела бы хуже полной прошлой. 14 дней фактов на это хватает. */
   function addDays(key, n) {
     const [y, m, d] = key.split("-").map(Number);
     return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
   }
+  /** Понедельник недели, в которую входит день key ('YYYY-MM-DD'). */
+  function weekStart(key) {
+    const wd = (new Date(key + "T00:00:00Z").getUTCDay() + 6) % 7; // 0 — понедельник
+    return addDays(key, -wd);
+  }
 
   function week(f) {
+    const mon = weekStart(f.today);
+    const span = Math.round((Date.parse(f.today) - Date.parse(mon)) / 86400000); // 0 в понедельник
     const cur = { n: 0, ok: 0, done: 0 }, prev = { n: 0, ok: 0 };
     let best = null;
-    for (let i = 0; i < 14; i++) {
-      const key = addDays(f.today, -i), d = f.days[key];
-      if (!d) continue;
-      if (i < 7) {
+    for (let i = 0; i <= span; i++) {
+      const d = f.days[addDays(mon, i)];
+      if (d) {
         cur.n += d.n; cur.ok += d.ok; if (d.done) cur.done++;
-        if (!best || d.n > best.n) best = { day: key, n: d.n };
-      } else { prev.n += d.n; prev.ok += d.ok; }
+        if (!best || d.n > best.n) best = { day: addDays(mon, i), n: d.n };
+      }
+      const p = f.days[addDays(mon, i - 7)];
+      if (p) { prev.n += p.n; prev.ok += p.ok; }
     }
     return {
+      monday: mon,
       n: cur.n,
       accuracy: cur.n ? Math.round(100 * cur.ok / cur.n) : null,
       doneDays: cur.done,
@@ -260,7 +270,7 @@
     };
   }
 
-  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, records };
+  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

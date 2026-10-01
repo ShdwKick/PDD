@@ -195,15 +195,21 @@ const ago = k => addDays(today, -k);
   const got = M.badges(f).filter(b => b.got).map(b => b.id);
   eq("значки: первый шаг, разогрев, двадцать подряд", ["first", "streak3", "combo20"].every(id => got.includes(id)), true);
   eq("значки: экзамена не было — «Сдал!» нет", got.includes("exam1"), false);
-  const w = M.week(f);
-  eq("неделя: 3 дня, два прошлых — из переноса", [w.n, w.doneDays], [66, 3]);
+  // Неделя — с понедельника: какие из трёх дней в неё попали, зависит от того,
+  // какой сегодня день недели, — ждём ровно то, что в неё попадает.
+  const w = M.week(f), mon = M.weekStart(today);
+  const inWeek = [[ago(2), 20], [ago(1), 20], [today, 26]].filter(([d]) => d >= mon);
+  eq("неделя с понедельника: вопросы и дни с нормой", [w.monday, w.n, w.doneDays], [mon, inWeek.reduce((a, [, n]) => a + n, 0), inWeek.length]);
+  eq("неделя: понедельник — первый день", [M.weekStart("2026-10-01"), M.weekStart("2026-09-28"), M.weekStart("2026-10-04")], ["2026-09-28", "2026-09-28", "2026-09-28"]);
+  const fw = { today: "2026-10-01", days: { "2026-09-30": { n: 20, ok: 18, done: true }, "2026-09-23": { n: 10, ok: 5 }, "2026-09-26": { n: 40, ok: 30, done: true } } };
+  eq("неделя: сравнение с тем же отрезком прошлой (пн–чт), суббота не в счёт", [M.week(fw).n, M.week(fw).prevN, M.week(fw).delta], [20, 10, 100]);
   eq("рубеж: 3 дня взят, следующий 7, в гараже — белый кузов и полосы", [M.milestone(3).hit.at, M.milestone(3).next.at, M.unlocksAt(3)], [3, 7, ["белый кузов", "гоночные полосы", "свой номер"]]);
   const r0 = M.readiness(f);
   eq("готовность: без экзаменов не «готов», шаг — экзамен", [r0.ready, r0.steps.some(x => x.href === "/ekzamen")], [false, true]);
   const full = { ...f, learned: f.total, exams: { ...f.exams, count: 3, passStreak: 3, recent: [{ passed: true }, { passed: true }, { passed: true }] } };
   eq("готовность: всё выучено и 3 экзамена подряд — готов", [M.readiness(full).ready, M.readiness(full).pct], [true, 88]);
   const feed = s.friendsFeed("x", ["m"]).m;
-  eq("лента: неделя и значки друга", [feed.week, feed.badges >= 3], [66, true]);
+  eq("лента: неделя (с понедельника) и значки друга", [feed.week, feed.badges >= 3], [w.n, true]);
 }
 
 { // гараж: выбор машины только из открытого по лучшей серии

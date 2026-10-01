@@ -1055,3 +1055,5 @@ a.lamp:hover{filter:brightness(1.1)}
 .hint-pop > b{color:var(--text);font-weight:700;font-size:13px}
 .hint-row b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:13px;color:var(--ink)}
 .hint:hover .hint-pop,.hint:focus-within .hint-pop,.hint.open .hint-pop{opacity:1;visibility:visible;transform:none}
+.w-day.future i{background:transparent;box-shadow:inset 0 0 0 1px var(--el-edge)}
+.w-day.future small{opacity:.5}
