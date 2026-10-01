@@ -1037,6 +1037,18 @@ a.lamp:hover{filter:brightness(1.1)}
 /* Подпись под машиной в гараже — во всю ширину сцены, по центру. */
 .garage-note{max-width:none;margin-top:10px;text-align:center}
 
-/* Из чего складывается готовность: две строки под полосой. */
-.ready-parts{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:12px;line-height:1.35;color:var(--text-2)}
-.ready-parts b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:13px;color:var(--ink)}
+/* «?» у заголовка готовности и подсказка: наведение, фокус с клавиатуры,
+   касание на телефоне (кнопка получает фокус). */
+.ready-label{display:inline-flex;align-items:center;gap:6px}
+.hint{position:relative;display:inline-flex}
+.hint-btn{width:18px;height:18px;border-radius:50%;border:1px solid var(--el-edge);background:var(--el);color:var(--text-2);
+  font:700 11px/1 var(--font);font-style:normal;letter-spacing:0;text-transform:none;cursor:help;display:grid;place-items:center;padding:0}
+.hint-btn:hover,.hint-btn:focus-visible{color:var(--text);border-color:var(--text-2)}
+.hint-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.hint-pop{position:absolute;z-index:5;left:-8px;top:calc(100% + 8px);width:min(300px,calc(100vw - 48px));
+  display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--card-edge);
+  box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 12.5px/1.4 var(--font);font-style:normal;letter-spacing:0;text-transform:none;color:var(--text-2);
+  opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s}
+.hint-pop > b{color:var(--text);font-weight:700;font-size:13px}
+.hint-row b{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:13px;color:var(--ink)}
+.hint:hover .hint-pop,.hint:focus-within .hint-pop,.hint.open .hint-pop{opacity:1;visibility:visible;transform:none}

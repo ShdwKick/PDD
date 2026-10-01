@@ -1029,28 +1029,43 @@ function readyBlock(f) {
   const steps = r.steps.map(x => x.href
     ? `<a class="btn-mini" href="${x.href}" data-link>${esc(x.text)}</a>`
     : `<span class="ready-step">${esc(x.text)}</span>`).join("");
-  // Из чего складывается процент — прямо под полосой: иначе «готовность 8%»
-  // рядом с «выучено 11%» выглядит ошибкой. Вклад экзаменов точный (по 6% за
-  // каждый сданный из пяти), вклад вопросов — остаток: в сумме ровно r.pct.
+  // Из чего складывается процент — в подсказке за «?» у заголовка: иначе
+  // «готовность 8%» рядом с «выучено 11%» выглядит ошибкой. Вклад экзаменов
+  // точный (по 6% за каждый сданный из пяти), вклад вопросов — остаток: в
+  // сумме ровно r.pct. Подсказка открывается наведением и фокусом (на
+  // телефоне — касанием), см. .hint в styles.css.
   const partE = r.passes * 6, partQ = r.pct - partE;
-  const parts = `<p class="ready-parts">
-      <span><b>${partQ}%</b> из 70 — вопросы: выучено ${r.know}%</span>
-      <span><b>${partE}%</b> из 30 — экзамены: сдано ${r.passes} из 5 последних</span>
-    </p>`;
+  const hint = `<span class="hint">
+      <button type="button" class="hint-btn" aria-label="Как считается готовность" aria-describedby="readyHint">?</button>
+      <span class="hint-pop" role="tooltip" id="readyHint">
+        <b>Как считается готовность</b>
+        <span class="hint-row"><b>${partQ}%</b> из 70 — вопросы: выучено ${r.know}% (вопрос выучен, если последний ответ на него верный)</span>
+        <span class="hint-row"><b>${partE}%</b> из 30 — экзамены: сдано ${r.passes} из 5 последних, по 6% за каждый</span>
+        <span class="hint-row">«Готовы к ГАИ» — когда выучено 90% вопросов и три последних экзамена сданы подряд.</span>
+      </span>
+    </span>`;
   return `<div class="ready" data-ready="${r.ready}">
     <div class="ready-head">
-      <span class="ready-label">Готовность к экзамену</span>
+      <span class="ready-label">Готовность к экзамену${hint}</span>
       <b class="ready-pct">${r.pct}<small>%</small></b>
     </div>
     <div class="ready-bar" role="img" aria-label="Готовность ${r.pct}%">
       ${Array.from({ length: segs }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}
       <em class="ready-goal" title="Цель — 90%"></em>
     </div>
-    <p class="ready-level"><b>${esc(r.level)}</b>${r.ready ? "" : " · цель — 90% и три экзамена подряд"}</p>
-    ${parts}
+    <p class="ready-level"><b>${esc(r.level)}</b> · выучено ${r.know}% вопросов, сдано ${r.passes} из 5 последних экзаменов</p>
     ${steps ? `<div class="ready-steps">${steps}</div>` : ""}
   </div>`;
 }
+
+// Подсказки «?»: на телефоне наведения нет, а iOS не даёт кнопке фокус по
+// касанию — открываем и закрываем касанием сами (класс .open), закрываем
+// касанием мимо.
+document.addEventListener("click", e => {
+  const btn = e.target.closest?.(".hint-btn");
+  for (const h of document.querySelectorAll(".hint.open")) if (!btn || h !== btn.parentElement) h.classList.remove("open");
+  if (btn) btn.parentElement.classList.toggle("open");
+});
 
 function addDaysKey(key, n) {
   const [y, m, d] = key.split("-").map(Number);
