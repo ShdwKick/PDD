@@ -855,7 +855,7 @@ a.lamp:hover{filter:brightness(1.1)}
 .rubezh-bar::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);background:var(--warn);border-radius:inherit}
 
 /* ---- готовность к экзамену — нижняя строка приборки ---- */
-.ready{margin:14px 6px 2px;padding-top:12px;border-top:1px solid var(--dash-edge)}
+.ready{position:relative;margin:14px 6px 2px;padding-top:12px;border-top:1px solid var(--dash-edge)}
 .ready-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .ready-label{font-family:var(--font-dash);font-style:italic;font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
 .ready-pct{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:28px;line-height:1;color:var(--ink)}
@@ -1043,12 +1043,12 @@ a.lamp:hover{filter:brightness(1.1)}
 /* «?» у заголовка готовности и подсказка: наведение, фокус с клавиатуры,
    касание на телефоне (кнопка получает фокус). */
 .ready-label{display:inline-flex;align-items:center;gap:6px}
-.hint{position:relative;display:inline-flex}
+.hint{display:inline-flex}
 .hint-btn{width:18px;height:18px;border-radius:50%;border:1px solid var(--el-edge);background:var(--el);color:var(--text-2);
   font:700 11px/1 var(--font);font-style:normal;letter-spacing:0;text-transform:none;cursor:help;display:grid;place-items:center;padding:0}
 .hint-btn:hover,.hint-btn:focus-visible{color:var(--text);border-color:var(--text-2)}
 .hint-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
-.hint-pop{position:absolute;z-index:5;left:-8px;top:calc(100% + 8px);width:min(300px,calc(100vw - 48px));
+.hint-pop{position:absolute;z-index:5;left:0;right:0;top:40px;width:auto;max-width:420px;
   display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--card-edge);
   box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 12.5px/1.4 var(--font);font-style:normal;letter-spacing:0;text-transform:none;color:var(--text-2);
   opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s}
