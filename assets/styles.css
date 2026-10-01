@@ -883,7 +883,10 @@ a.lamp:hover{filter:brightness(1.1)}
 .w-tile em{font-style:normal;font-size:11.5px;font-weight:600}
 .w-tile em.up{color:var(--ok)}
 .w-tile em.down{color:var(--text-2)}
-.w-dots{display:flex;gap:3px;margin-top:2px}
+.w-dots{display:flex;gap:4px;margin-top:3px}
+.w-day{display:flex;flex-direction:column;align-items:center;gap:2px}
+.w-day small{font-size:9.5px;line-height:1;font-weight:600;color:var(--text-2)}
+.w-day.today small{color:var(--text);font-weight:800}
 .w-dots i{width:8px;height:8px;border-radius:50%;background:var(--el-edge)}
 .w-dots i.part{background:color-mix(in srgb,var(--ok) 40%,var(--el-edge))}
 .w-dots i.on{background:var(--ok)}

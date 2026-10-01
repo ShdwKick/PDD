@@ -1085,9 +1085,17 @@ function motivBlock(f) {
   const next = all.filter(b => !b.got).sort((a, b) => b.progress - a.progress)[0];
   const delta = w.delta === null ? "" : w.delta >= 0
     ? `<em class="up">+${w.delta}% к прошлой</em>` : `<em class="down">${w.delta}% к прошлой</em>`;
-  // Счётчик «дней с нормой»: заполняется справа налево — сколько дней за
-  // неделю норма выполнена, столько точек горит от правого края.
-  const dots = Array.from({ length: 7 }, (_, i) => `<i class="${i >= 7 - w.doneDays ? "on" : ""}"></i>`).join("");
+  // «Дни с нормой» — последние 7 дней, сегодня справа, у каждой точки буква
+  // дня недели: без подписей точки читались как неделя с понедельника, и
+  // среда казалась субботой. Горит — норма выполнена, бледная — что-то
+  // решали, но норму не закрыли.
+  const LETTERS = ["В", "П", "В", "С", "Ч", "П", "С"]; // getUTCDay(): 0 — воскресенье
+  const dots = Array.from({ length: 7 }, (_, i) => {
+    const key = addDaysKey(f.today, i - 6), d = f.days[key];
+    const wd = new Date(key + "T00:00:00Z").getUTCDay();
+    return `<span class="w-day ${i === 6 ? "today" : ""}" title="${shortDay(key)}${d?.done ? " — норма выполнена" : ""}">
+      <i class="${d?.done ? "on" : d ? "part" : ""}"></i><small>${LETTERS[wd]}</small></span>`;
+  }).join("");
   const strip = recent.length
     ? recent.map(b => `<span class="bs-item" title="${esc(b.title)}">${medal(b)}</span>`).join("")
     : `<span class="bs-empty">Первый значок — за первый ответ</span>`;
