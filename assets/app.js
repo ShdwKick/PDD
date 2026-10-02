@@ -210,30 +210,13 @@ $("authBtn").addEventListener("click", () => {
 const closeIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
 const chevronIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>`;
 
-function openAccount() {
+/** Окошко поверх страницы: закрывается крестиком, фоном, Esc и любым
+ * [data-close] внутри; фокус потом возвращается туда, где был. */
+function openModal(titleId, inner, extraClass = "") {
   document.querySelector(".acc-backdrop")?.remove();
-  const st = me?.streak || { current: 0, todayDone: false, todayCount: 0, target: 20 };
-  const name = me?.user?.name || "Аккаунт";
   const back = document.createElement("div");
   back.className = "acc-backdrop";
-  back.innerHTML = `
-    <div class="acc-modal" role="dialog" aria-modal="true" aria-labelledby="accTitle">
-      <div class="acc-head">
-        <h2 id="accTitle">Аккаунт</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Закрыть">${closeIcon}</button>
-      </div>
-      <div class="acc-user">
-        ${flameSvg(flameState(st), "", st.current)}
-        <span><b>${esc(name)}</b><span>${st.current ? `${st.current} ${daysWord(st.current)} подряд` : "огонёк не горит"} · аккаунт BurningHouse</span></span>
-      </div>
-      <nav class="acc-links">
-        <a href="/garazh" data-link data-close>Гараж${chevronIcon}</a>
-        <a href="/znachki" data-link data-close>Значки и рекорды${chevronIcon}</a>
-        <a href="/plan" data-link data-close>План и напоминания${chevronIcon}</a>
-        <a href="${esc(auth.authBase)}/" target="_blank" rel="noopener">Управление аккаунтом и друзьями${chevronIcon}</a>
-      </nav>
-      <button type="button" class="btn acc-logout" data-logout>Выйти</button>
-    </div>`;
+  back.innerHTML = `<div class="acc-modal ${extraClass}" role="dialog" aria-modal="true" aria-labelledby="${titleId}">${inner}</div>`;
   document.body.append(back);
   const prevFocus = document.activeElement;
   const close = () => {
@@ -247,12 +230,37 @@ function openAccount() {
   back.addEventListener("click", e => {
     if (e.target === back || e.target.closest("[data-close]")) close();
   });
+  back.querySelector("[data-close].icon-btn")?.focus();
+  return { back, close };
+}
+
+const modalHead = (id, title) => `
+  <div class="acc-head">
+    <h2 id="${id}">${title}</h2>
+    <button type="button" class="icon-btn" data-close aria-label="Закрыть">${closeIcon}</button>
+  </div>`;
+
+function openAccount() {
+  const st = me?.streak || { current: 0, todayDone: false, todayCount: 0, target: 20 };
+  const name = me?.user?.name || "Аккаунт";
+  const { back, close } = openModal("accTitle", `
+    ${modalHead("accTitle", "Аккаунт")}
+    <div class="acc-user">
+      ${flameSvg(flameState(st), "", st.current)}
+      <span><b>${esc(name)}</b><span>${st.current ? `${st.current} ${daysWord(st.current)} подряд` : "огонёк не горит"} · аккаунт BurningHouse</span></span>
+    </div>
+    <nav class="acc-links">
+      <a href="/garazh" data-link data-close>Гараж${chevronIcon}</a>
+      <a href="/znachki" data-link data-close>Значки и рекорды${chevronIcon}</a>
+      <a href="/plan" data-link data-close>План и напоминания${chevronIcon}</a>
+      <a href="${esc(auth.authBase)}/" target="_blank" rel="noopener">Управление аккаунтом и друзьями${chevronIcon}</a>
+    </nav>
+    <button type="button" class="btn acc-logout" data-logout>Выйти</button>`);
   back.querySelector("[data-logout]").addEventListener("click", () => {
     close();
     setMe(null);
     auth.logout();
   });
-  back.querySelector("[data-close].icon-btn").focus();
 }
 
 /** Вход: обмен кода, подгрузка /api/me, один раз — перенос гостя. Ошибки
@@ -425,6 +433,12 @@ function applyCar(el, car) {
   for (const [k, v] of Object.entries(car)) if (k !== "plate") el.classList.add(`car-${k}-${v}`);
   setPlateText(el, car.plate);
 }
+
+/** Копия машины с дороги для гаража и друзей. id градиентов внутри SVG
+ * общие на документ — у копии они с префиксом, иначе копии красились бы
+ * градиентами машины на дороге. */
+const carSvg = prefix => $("car").querySelector("svg").outerHTML
+  .replace(/id="(\w+)"/g, `id="${prefix}$1"`).replace(/url\(#(\w+)\)/g, `url(#${prefix}$1)`);
 
 /** Текст на номере: до 5 символов — как есть, длиннее — ужимаем в ширину
  * поля номера (без флага), чтобы 8 символов влезали. */
@@ -845,6 +859,12 @@ async function loadFriends() {
     } catch { /* отменили «поделиться» — ничего не делаем */ }
   });
   for (const b of $("friends").querySelectorAll("[data-nudge]")) b.addEventListener("click", () => nudge(b));
+  const byId = new Map(list.map(f => [f.userId, f]));
+  for (const b of $("friends").querySelectorAll("[data-car]")) {
+    const f = byId.get(b.dataset.car);
+    applyCar(b.querySelector(".car"), f.car);
+    b.addEventListener("click", () => openFriendCar(f));
+  }
   // Место за неделю среди друзей — в карточке недели.
   const mine = M.week(currentFacts(config)).n;
   const others = data.friends.filter(f => f.started).map(f => f.week || 0);
@@ -856,7 +876,7 @@ async function loadFriends() {
   }
 }
 
-function friendRow(f) {
+function friendRow(f, i) {
   let flame = "out", line, action = "";
   if (!f.started) {
     line = `<span class="f-sub">ещё не начинал(а)</span>`;
@@ -872,11 +892,36 @@ function friendRow(f) {
     else action = f.nudgedToday ? `<span class="f-sent">подтолкнули</span>` : `<button type="button" class="btn-mini" data-nudge="${esc(f.userId)}">Подтолкнуть</button>`;
   }
   const days = f.started && f.streak.current ? `${f.streak.current} ${daysWord(f.streak.current)} подряд` : "огонёк не горит";
-  return `<li class="friend" data-state="${flame}">
+  // Машина — у тех, кто начал: у остальных гаража ещё нет.
+  const car = f.car ? `<button type="button" class="f-car" data-car="${esc(f.userId)}" aria-label="Машина: ${esc(f.name)}">
+      <span class="car mini-car" aria-hidden="true">${carSvg(`f${i}`)}</span>
+    </button>` : "";
+  return `<li class="friend ${f.car ? "has-car" : ""}" data-state="${flame}">
     ${flameSvg(flame, "", f.started ? f.streak.current : 0)}
     <span class="f-main"><b>${esc(f.name)}</b><span class="f-days">${f.started ? days : ""}</span>${line}</span>
+    ${car}
     <span class="f-act">${action}</span>
   </li>`;
+}
+
+/** Машина друга крупно — как у него в гараже, плюс из чего она собрана. */
+function openFriendCar(f) {
+  const best = f.streak?.best || 0;
+  const parts = M.CAR.map(c => {
+    const it = c.items.find(x => x.id === f.car[c.id]);
+    return it ? `<li><span>${esc(c.name)}</span><b>${esc(it.name)}</b></li>` : "";
+  }).join("");
+  const { back } = openModal("fcarTitle", `
+    ${modalHead("fcarTitle", `Машина: ${esc(f.name)}`)}
+    <div class="garage-stage fcar-stage"><span class="car garage-car" id="fCar">${carSvg("m")}</span></div>
+    <p class="fcar-sub">Лучшая серия — ${best} ${daysWord(best)}. Детали открываются рубежами огонька.</p>
+    <ul class="fcar-parts">${parts}${f.car.plate ? `<li><span>Номер</span><b>${esc(f.car.plate)}</b></li>` : ""}</ul>
+    <a class="btn-mini ghost fcar-own" href="/garazh" data-link data-close>Мой гараж</a>`, "fcar-modal");
+  const car = back.querySelector("#fCar");
+  applyCar(car, f.car);
+  back.querySelector(".fcar-stage").addEventListener("click", () => {
+    car.classList.remove("lit"); void car.offsetWidth; car.classList.add("lit");
+  });
 }
 
 async function nudge(btn) {
@@ -1218,8 +1263,7 @@ async function renderGarage() {
   const best = st.best || 0;
   const total = M.CAR.reduce((a, c) => a + c.items.length, 0);
   const open = M.CAR.reduce((a, c) => a + c.items.filter(it => best >= it.at).length, 0);
-  const preview = $("car").querySelector("svg").outerHTML
-    .replace(/id="(\w+)"/g, 'id="g$1"').replace(/url\(#(\w+)\)/g, "url(#g$1)");
+  const preview = carSvg("g");
 
   view.innerHTML = `
     <div class="ex-header">

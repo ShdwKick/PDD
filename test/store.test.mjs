@@ -227,6 +227,8 @@ const ago = k => addDays(today, -k);
   eq("свой номер с 3 дней — сохраняется заглавными", s.setCar("g", { plate: "ане 77" })?.car.plate, "АНЕ 77");
   eq("номер длиннее 8 символов — нет", s.setCar("g", { plate: "123456789" }), null);
   eq("номер со спецсимволами — нет", s.setCar("g", { plate: "<b>hi" }), null);
+  eq("друзья видят машину такой, какой её выбрал хозяин", s.friendsFeed("v", ["g"]).g.car,
+    { paint: "white", stripes: "none", spoiler: "none", glow: "none", exhaust: "none", plate: "АНЕ 77" });
   const s2 = fresh();
   eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
 }
