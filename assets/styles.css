@@ -1047,15 +1047,8 @@ a.lamp:hover{filter:brightness(1.1)}
 .car.mini-car{position:static;transform:none;width:44px;z-index:0;pointer-events:none}
 .car.mini-car svg{animation:none}
 .car.mini-car .p-glow,.car.mini-car .exhaust{animation:none}
-.fcar-stage{height:200px;margin-top:6px}
-.fcar-stage .car.garage-car{width:180px}
-.fcar-sub{margin-top:10px;font-size:13px;color:var(--text-2);text-align:center}
-.fcar-parts{list-style:none;margin-top:10px;display:flex;flex-direction:column}
-.fcar-parts li{display:flex;justify-content:space-between;gap:12px;padding:8px 4px;border-bottom:1px solid var(--card-edge);font-size:14px}
-.fcar-parts li:last-child{border-bottom:0}
-.fcar-parts span{color:var(--text-2)}
-.fcar-parts b{font-weight:650;text-align:right}
-.fcar-own{display:flex;justify-content:center;margin-top:12px}
+.fcar-stage{height:240px;margin-top:6px}
+.fcar-stage .car.garage-car{width:210px}
 /* На телефоне в ряд не влезает — машина встаёт над кнопкой, текст не ужимается. */
 @media (max-width:420px){
   .friend.has-car{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"fl main car" "fl main act";row-gap:8px}

@@ -904,19 +904,11 @@ function friendRow(f, i) {
   </li>`;
 }
 
-/** Машина друга крупно — как у него в гараже, плюс из чего она собрана. */
+/** Машина друга крупно — как у него в гараже, одна картинка. */
 function openFriendCar(f) {
-  const best = f.streak?.best || 0;
-  const parts = M.CAR.map(c => {
-    const it = c.items.find(x => x.id === f.car[c.id]);
-    return it ? `<li><span>${esc(c.name)}</span><b>${esc(it.name)}</b></li>` : "";
-  }).join("");
   const { back } = openModal("fcarTitle", `
     ${modalHead("fcarTitle", `Машина: ${esc(f.name)}`)}
-    <div class="garage-stage fcar-stage"><span class="car garage-car" id="fCar">${carSvg("m")}</span></div>
-    <p class="fcar-sub">Лучшая серия — ${best} ${daysWord(best)}. Детали открываются рубежами огонька.</p>
-    <ul class="fcar-parts">${parts}${f.car.plate ? `<li><span>Номер</span><b>${esc(f.car.plate)}</b></li>` : ""}</ul>
-    <a class="btn-mini ghost fcar-own" href="/garazh" data-link data-close>Мой гараж</a>`, "fcar-modal");
+    <div class="garage-stage fcar-stage"><span class="car garage-car" id="fCar">${carSvg("m")}</span></div>`, "fcar-modal");
   const car = back.querySelector("#fCar");
   applyCar(car, f.car);
   back.querySelector(".fcar-stage").addEventListener("click", () => {
