@@ -55,7 +55,7 @@ final class WidgetRender {
             v.setTextViewText(R.id.label, c.getString(R.string.widget_connect));
             v.setViewVisibility(R.id.progress, View.GONE);
             v.setViewVisibility(R.id.today, View.GONE);
-            v.setOnClickPendingIntent(R.id.root, open(c, "/vidzhet?app=android"));
+            v.setOnClickPendingIntent(R.id.root, open(c, "/widget?app=android"));
             return v;
         }
         v.setOnClickPendingIntent(R.id.root, open(c, "/?app=android"));

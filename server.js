@@ -209,13 +209,13 @@ function routeSeo(rel) {
   if (rel === "garazh") {
     return { title: `Гараж — ${SERVICE_NAME}`, description: "Цвета и детали для машины за рубежи огонька: 3, 7, 14, 30, 50 и 100 дней подготовки к экзамену ПДД подряд.", noindex: true };
   }
-  if (rel === "konfidencialnost") {
+  if (rel === "privacy") {
     return { title: `Политика конфиденциальности — ${SERVICE_NAME}`, description: "Какие данные хранит тренажёр билетов ПДД «Когда на права?», кто их видит и как их удалить." };
   }
-  if (rel === "udalenie-dannyh") {
+  if (rel === "delete-account") {
     return { title: `Удаление аккаунта и данных — ${SERVICE_NAME}`, description: "Как удалить данные подготовки и аккаунт BurningHouse в «Когда на права?» — самостоятельно, в пару нажатий." };
   }
-  if (rel === "vidzhet") {
+  if (rel === "widget") {
     return { title: `Виджет на экран телефона — ${SERVICE_NAME}`, description: "Огонёк и норма дня прямо на главном экране телефона — в приложении для Android.", noindex: true };
   }
   if (rel === "znachki") {
@@ -365,7 +365,7 @@ async function handleApi(req, res, pathname) {
     const tz = new URL(req.url, "http://localhost").searchParams.get("tz");
     return json(res, 200, { user: { id: user.id, name: user.name || user.username }, ...store.me(user.id, tz) });
   }
-  // «Удалить мои данные» (страница /udalenie-dannyh): весь прогресс в сервисе.
+  // «Удалить мои данные» (страница /delete-account): весь прогресс в сервисе.
   // Аккаунт BurningHouse остаётся — он в Auth, удаляется в его кабинете.
   if (pathname === "/api/me" && method === "DELETE") {
     store.deleteUserData(user.id);
@@ -409,7 +409,7 @@ async function handleApi(req, res, pathname) {
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_ticket" });
   }
 
-  // Ключ для виджета: выдаётся вошедшему и уходит в приложение (страница /vidzhet).
+  // Ключ для виджета: выдаётся вошедшему и уходит в приложение (страница /widget).
   if (pathname === "/api/widget/token" && method === "POST") {
     return json(res, 200, { token: store.createWidgetToken(user.id) });
   }
@@ -504,6 +504,8 @@ async function handleApi(req, res, pathname) {
   return json(res, 405, { error: "method_not_allowed" });
 }
 
+const MOVED = { konfidencialnost: "privacy", "udalenie-dannyh": "delete-account", vidzhet: "widget" };
+
 const server = http.createServer((req, res) => {
   let pathname;
   try { pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname); }
@@ -525,6 +527,12 @@ const server = http.createServer((req, res) => {
   }
 
   const rel = pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  // Служебные страницы первые дни жили под транслитом — старые ссылки (в т. ч.
+  // из приложения 1.0.1) ведём на новые адреса навсегда, с тем же ?query.
+  if (MOVED[rel]) {
+    res.writeHead(301, { Location: `/${MOVED[rel]}${new URL(req.url, "http://localhost").search}` }).end();
+    return;
+  }
   const seo = routeSeo(rel === "index.html" ? "" : rel);
   if (seo) {
     fs.readFile(path.join(ROOT, "index.html"), "utf8", (err, html) => {

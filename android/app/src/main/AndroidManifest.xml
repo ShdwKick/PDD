@@ -50,7 +50,7 @@
             </intent-filter>
         </service>
 
-        <!-- Ключ виджета приходит с сайта (страница /vidzhet): pddwidget://connect?token=… -->
+        <!-- Ключ виджета приходит с сайта (страница /widget): pddwidget://connect?token=… -->
         <activity
             android:name=".ConnectActivity"
             android:exported="true"

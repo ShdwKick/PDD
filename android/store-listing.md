@@ -2,7 +2,7 @@
 
 Всё, что спрашивает Play Console при первой публикации, — готовыми ответами.
 Ответы соответствуют тому, что сервис действительно хранит (lib/store.js,
-политика — https://pdd.burninghouse.ru/konfidencialnost).
+политика — https://pdd.burninghouse.ru/privacy).
 
 ## Основное
 
@@ -14,9 +14,9 @@
 | Теги | Образование, Справочники (по подсказкам Play) |
 | Почта для связи | 4d5.gamedev@gmail.com |
 | Сайт | https://pdd.burninghouse.ru |
-| Политика конфиденциальности | https://pdd.burninghouse.ru/konfidencialnost |
-| Удаление аккаунта и данных | https://pdd.burninghouse.ru/udalenie-dannyh |
-| Удаление только данных | https://pdd.burninghouse.ru/udalenie-dannyh |
+| Политика конфиденциальности | https://pdd.burninghouse.ru/privacy |
+| Удаление аккаунта и данных | https://pdd.burninghouse.ru/delete-account |
+| Удаление только данных | https://pdd.burninghouse.ru/delete-account |
 | Реклама | Нет |
 | Платно / покупки | Бесплатно, без покупок |
 

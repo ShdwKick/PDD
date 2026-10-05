@@ -332,7 +332,7 @@ function openAccount() {
       <a href="/garazh" data-link data-close>Гараж${chevronIcon}</a>
       <a href="/znachki" data-link data-close>Значки и рекорды${chevronIcon}</a>
       <a href="/plan" data-link data-close>План и напоминания${chevronIcon}</a>
-      ${inAndroidApp() ? `<a href="/vidzhet" data-link data-close>Виджет на экран${chevronIcon}</a>` : ""}
+      ${inAndroidApp() ? `<a href="/widget" data-link data-close>Виджет на экран${chevronIcon}</a>` : ""}
       <a href="${esc(auth.authBase)}/" target="_blank" rel="noopener">Управление аккаунтом и друзьями${chevronIcon}</a>
     </nav>
     <button type="button" class="btn acc-logout" data-logout>Выйти</button>`);
@@ -787,9 +787,12 @@ function route() {
   if (p === "/temy") return renderTopics();
   if (p === "/znachki") return renderBadges();
   if (p === "/garazh") return renderGarage();
-  if (p === "/vidzhet") return renderWidget();
-  if (p === "/konfidencialnost") return renderPrivacy();
-  if (p === "/udalenie-dannyh") return renderDeletion();
+  if (p === "/widget") return renderWidget();
+  // Старые адреса (см. MOVED в server.js) — если попали сюда из кэша приложения.
+  const moved = { "/konfidencialnost": "/privacy", "/udalenie-dannyh": "/delete-account", "/vidzhet": "/widget" }[p];
+  if (moved) return navigate(moved + location.search, { replace: true });
+  if (p === "/privacy") return renderPrivacy();
+  if (p === "/delete-account") return renderDeletion();
   const mini = /^\/mini\/(\d{1,2})$/.exec(p);
   if (mini && Number(mini[1]) >= 5 && Number(mini[1]) <= 20) return renderMini(Number(mini[1]));
   const t = /^\/tema\/(\d{1,2})$/.exec(p);
@@ -1312,7 +1315,7 @@ function docPage(title, sub, html) {
 async function renderPrivacy() {
   document.title = `Политика конфиденциальности — ${SERVICE_NAME}`;
   const cfg = await loadConfig();
-  if (!stillOn("/konfidencialnost")) return;
+  if (!stillOn("/privacy")) return;
   setDrive(currentStreak(cfg));
   const mail = `<a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>`;
   docPage("Конфиденциальность", `Редакция от ${POLICY_DATE}`, `
@@ -1340,7 +1343,7 @@ async function renderPrivacy() {
     <p>Никому не продаём и не передаём для рекламы. Уведомления на устройство доставляет служба уведомлений вашего браузера (например, Google для Chrome) — она получает зашифрованное сообщение, которое прочитать не может. Технические журналы сервера (время и адрес запроса) хранятся ограниченное время — чтобы разбирать сбои и защищаться от атак.</p>
 
     <h2>Сколько храним и как удалить</h2>
-    <p>Пока у вас есть аккаунт. Удалить данные подготовки или аккаунт целиком можно самостоятельно — как, написано на странице <a href="/udalenie-dannyh" data-link>«Удаление аккаунта и данных»</a>. После удаления аккаунта BurningHouse данные подготовки стираются автоматически в течение двух суток.</p>
+    <p>Пока у вас есть аккаунт. Удалить данные подготовки или аккаунт целиком можно самостоятельно — как, написано на странице <a href="/delete-account" data-link>«Удаление аккаунта и данных»</a>. После удаления аккаунта BurningHouse данные подготовки стираются автоматически в течение двух суток.</p>
 
     <h2>Дети</h2>
     <p>Сервис рассчитан на тех, кто готовится к экзамену на права, и не предназначен для детей младше 13 лет.</p>
@@ -1359,7 +1362,7 @@ function wipeLocalProgress() {
 async function renderDeletion() {
   document.title = `Удаление аккаунта и данных — ${SERVICE_NAME}`;
   const cfg = await loadConfig();
-  if (!stillOn("/udalenie-dannyh")) return;
+  if (!stillOn("/delete-account")) return;
   setDrive(currentStreak(cfg));
   const mail = `<a href="mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`${SERVICE_NAME}: удаление данных`)}">${CONTACT_EMAIL}</a>`;
   const account = auth ? `${esc(auth.authBase)}/` : "https://auth.burninghouse.ru/";
@@ -1380,7 +1383,7 @@ async function renderDeletion() {
     <h2>Нет доступа к аккаунту</h2>
     <p>Напишите на ${mail} с почты, привязанной к аккаунту, и укажите логин — удалим вручную в течение 30 дней.</p>
 
-    <p class="muted">Подробнее о том, что хранится, — в <a href="/konfidencialnost" data-link>политике конфиденциальности</a>.</p>`);
+    <p class="muted">Подробнее о том, что хранится, — в <a href="/privacy" data-link>политике конфиденциальности</a>.</p>`);
 
   view.querySelector("[data-login]")?.addEventListener("click", login);
   $("delLocal").addEventListener("click", () => {
@@ -1426,7 +1429,7 @@ const inAndroidApp = () => { try { return localStorage.getItem(APP_KEY) === "and
 async function renderWidget() {
   document.title = `Виджет на экран — ${SERVICE_NAME}`;
   const cfg = await loadConfig();
-  if (!stillOn("/vidzhet")) return;
+  if (!stillOn("/widget")) return;
   setDrive(currentStreak(cfg));
   const app = inAndroidApp();
   const action = !app
