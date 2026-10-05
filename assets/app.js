@@ -840,6 +840,7 @@ async function renderHub() {
       </div>
       <div id="ready">${readyBlock(currentFacts(cfg))}</div>
     </section>
+    ${widgetOffer()}
     <div class="lamps">
       ${s.mistakes
         ? `<a class="lamp warn" href="/oshibki" data-link>${s.mistakes} ${plural(s.mistakes, "ошибка", "ошибки", "ошибок")} на повторение</a>`
@@ -882,6 +883,7 @@ async function renderHub() {
       версия ${esc(cfg.dataset.version)}.</p>
   `;
   view.querySelector("[data-login]")?.addEventListener("click", login);
+  bindWidgetOffer();
   $("randomBtn").addEventListener("click", () => {
     navigate(`/bilet/${pool[Math.floor(Math.random() * pool.length)]}`);
   });
@@ -1426,6 +1428,46 @@ const APP_KEY = "bh-pdd-app";
 })();
 const inAndroidApp = () => { try { return localStorage.getItem(APP_KEY) === "android"; } catch { return false; } };
 
+/* Подключение виджета одним нажатием (карточка на главной или страница /widget):
+   ключ → в приложение intent-ссылкой → ConnectActivity сохраняет его и сразу
+   просит лаунчер поставить виджет на экран (requestPinAppWidget). Вызывать
+   только из обработчика нажатия: без жеста Chrome intent-ссылку не откроет. */
+const WIDGET_KEY = "bh-pdd-widget"; // "on" — подключён, "no" — карточку закрыли
+const widgetState = () => { try { return localStorage.getItem(WIDGET_KEY); } catch { return null; } };
+const setWidgetState = v => { try { localStorage.setItem(WIDGET_KEY, v); } catch {} };
+
+async function connectWidget(btn, status) {
+  btn.disabled = true;
+  try {
+    const { token } = await apiJson("/api/widget/token", { method: "POST", body: {} });
+    setWidgetState("on");
+    // Chrome (в нём живёт TWA) отдаёт intent-ссылку нашему пакету.
+    location.href = `intent://connect?token=${encodeURIComponent(token)}#Intent;scheme=pddwidget;package=${ANDROID_PACKAGE};end`;
+    if (status) status.textContent = "Готово — подтвердите, куда поставить виджет.";
+  } catch (e) {
+    console.error("Ключ виджета:", e);
+    if (status) status.textContent = "Не получилось — проверьте связь и попробуйте ещё раз.";
+  } finally { btn.disabled = false; }
+}
+
+/** Карточка на главной внутри приложения: предложить виджет, пока его не подключили и не отказались. */
+function widgetOffer() {
+  if (!inAndroidApp() || !me || widgetState()) return "";
+  return `<div class="card widget-offer" id="widgetOffer">
+    ${flameSvg("lit", "", me.streak?.current || 0)}
+    <span class="wo-text"><b>Огонёк на главном экране</b><span>Серия и норма дня — не открывая приложение</span></span>
+    <button type="button" class="btn-mini" id="woAdd">Добавить виджет</button>
+    <button type="button" class="icon-btn wo-close" id="woClose" aria-label="Не предлагать">${closeIcon}</button>
+  </div>`;
+}
+function bindWidgetOffer() {
+  $("woAdd")?.addEventListener("click", async () => {
+    await connectWidget($("woAdd"));
+    if (widgetState() === "on") $("widgetOffer")?.remove();
+  });
+  $("woClose")?.addEventListener("click", () => { setWidgetState("no"); $("widgetOffer")?.remove(); });
+}
+
 async function renderWidget() {
   document.title = `Виджет на экран — ${SERVICE_NAME}`;
   const cfg = await loadConfig();
@@ -1454,19 +1496,7 @@ async function renderWidget() {
     </div>`;
 
   view.querySelector("[data-login]")?.addEventListener("click", login);
-  $("wConnect")?.addEventListener("click", async () => {
-    const btn = $("wConnect");
-    btn.disabled = true;
-    try {
-      const { token } = await apiJson("/api/widget/token", { method: "POST", body: {} });
-      // В приложение — intent-ссылкой: Chrome (в нём живёт TWA) отдаёт её нашему пакету.
-      location.href = `intent://connect?token=${encodeURIComponent(token)}#Intent;scheme=pddwidget;package=${ANDROID_PACKAGE};end`;
-      $("wStatus").textContent = "Готово — теперь добавьте виджет на главный экран.";
-    } catch (e) {
-      console.error("Ключ виджета:", e);
-      $("wStatus").textContent = "Не получилось — проверьте связь и попробуйте ещё раз.";
-    } finally { btn.disabled = false; }
-  });
+  $("wConnect")?.addEventListener("click", () => connectWidget($("wConnect"), $("wStatus")));
   $("wRevoke")?.addEventListener("click", async () => {
     if (!confirm("Отключить виджеты на всех ваших устройствах? Подключить снова можно здесь же.")) return;
     try {

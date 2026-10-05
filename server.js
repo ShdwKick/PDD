@@ -179,7 +179,11 @@ const INDEXABLE = process.env.INDEXABLE === "1";
 // показывает адресную строку. SHA-256 сертификатов подписи — через запятую:
 // ключ Play App Signing и, для APK в обход стора, ключ загрузки.
 const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE || "ru.burninghouse.pdd";
-const ANDROID_CERTS = (process.env.ANDROID_CERT_SHA256 || "").split(",").map(x => x.trim().toUpperCase()).filter(x => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
+// По умолчанию — наш ключ загрузки (android/README.md, «Подпись»): отпечаток не
+// секрет, а без него приложение показывает адресную строку, пока на сервере не
+// поправят compose. Ключ подписи Google Play — дописать сюда же через запятую.
+const ANDROID_CERTS_DEFAULT = "9C:0A:87:11:81:BD:4A:C3:76:BC:20:73:D4:40:E5:36:18:B0:C3:E8:8F:79:C6:D3:1C:95:22:11:2E:BF:45:37";
+const ANDROID_CERTS = (process.env.ANDROID_CERT_SHA256 || ANDROID_CERTS_DEFAULT).split(",").map(x => x.trim().toUpperCase()).filter(x => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
 
 function routeSeo(rel) {
   if (rel === "") {

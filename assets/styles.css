@@ -1093,6 +1093,21 @@ a.lamp:hover{filter:brightness(1.1)}
 .w-day.future i{background:transparent;box-shadow:inset 0 0 0 1px var(--el-edge)}
 .w-day.future small{opacity:.5}
 
+/* ---- карточка «Добавить виджет» на главной (только в приложении) ---- */
+.widget-offer{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;margin-top:14px;padding:12px 8px 12px 14px}
+.widget-offer .flame{width:34px;height:34px}
+.wo-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wo-text b{font-weight:700;font-size:15px}
+.wo-text span{font-size:12.5px;color:var(--text-2);line-height:1.35}
+.wo-close .icon{width:18px;height:18px}
+@media (max-width:420px){
+  .widget-offer{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"fl tx x" "fl add add"}
+  .widget-offer .flame{grid-area:fl}
+  .wo-text{grid-area:tx}
+  .wo-close{grid-area:x}
+  #woAdd{grid-area:add;justify-self:start}
+}
+
 /* ---- виджет на экран (страница /widget) ---- */
 .w-card{padding:16px}
 .w-steps{margin:0 0 14px 18px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
