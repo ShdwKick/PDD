@@ -24,7 +24,9 @@ if (-not $letter) { throw "Нет свободной буквы диска P–Z
 subst "$($letter):" $PSScriptRoot
 try {
     Push-Location "$($letter):\"
-    & .\gradlew.bat $Task @Rest
+    # Без демона: он наследует вывод сборки, и перенаправленный в файл/конвейер
+    # вызов этого скрипта иначе «висит» до конца жизни демона.
+    & .\gradlew.bat --no-daemon $Task @Rest
     if ($LASTEXITCODE -ne 0) { throw "gradlew ${Task}: код $LASTEXITCODE" }
 } finally {
     Pop-Location

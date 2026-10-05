@@ -262,6 +262,33 @@ const ago = k => addDays(today, -k);
   eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
 }
 
+{ // удаление данных: по просьбе человека и за удалёнными в Auth аккаунтами
+  const s = fresh();
+  withDays(s, "gone", { [ago(2)]: 20, [ago(1)]: 20 });
+  answerN(s, "gone", 5);
+  s.setCar("gone", { paint: "white" });
+  s.createWidgetToken("gone");
+  s.recordNudge("gone", "stay");
+  s.recordNudge("stay", "gone");
+  withDays(s, "stay", { [ago(1)]: 20 });
+  const rows = s.deleteUserData("gone");
+  const m = s.me("gone", TZ);
+  eq("удалил свои данные — как новый", [rows > 0, m.streak.best, m.summary.learned, m.car], [true, 0, 0, null]);
+  eq("толчки с ним стёрты в обе стороны", [s.recordNudge("stay", "gone").ok], [true]);
+  eq("чужие данные целы", s.me("stay", TZ).streak.best, 1);
+
+  const p = fresh(), H = 3600 * 1000, t0 = Date.now();
+  withDays(p, "alive", { [ago(1)]: 20 });
+  withDays(p, "deleted", { [ago(1)]: 20 });
+  eq("нет в Auth впервые — только отметка", p.purgeMissing(new Set(["alive"]), t0).purged, 0);
+  eq("через 23 часа — ещё ждём", p.purgeMissing(new Set(["alive"]), t0 + 23 * H).purged, 0);
+  eq("через сутки — стёрт, живой цел", [p.purgeMissing(new Set(["alive"]), t0 + 25 * H).purged, p.me("alive", TZ).streak.best], [1, 1]);
+  withDays(p, "flaky", { [ago(1)]: 20 });
+  p.purgeMissing(new Set(["alive"]), t0);
+  p.purgeMissing(new Set(["alive", "flaky"]), t0 + H); // Auth снова его вернул
+  eq("вернулся в списке Auth — отметка снята, не стёрт", p.purgeMissing(new Set(["alive"]), t0 + 30 * H).purged, 0);
+}
+
 { // ключ виджета: только чтение огонька, хранится хешем, отзывается
   const s = fresh();
   withDays(s, "w", { [ago(2)]: 20, [ago(1)]: 20 });

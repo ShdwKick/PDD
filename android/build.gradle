@@ -1,3 +1,4 @@
 plugins {
-    id "com.android.application" version "8.5.2" apply false
+    // compileSdk/targetSdk 36 (требование Google Play) — с AGP 8.9 и Gradle 8.11.1.
+    id "com.android.application" version "8.9.3" apply false
 }

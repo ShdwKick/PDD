@@ -155,6 +155,20 @@ setInterval(() => sendReminders().catch(e => console.error("Напоминани
 setTimeout(() => sendReminders().catch(() => {}), 10 * 1000).unref();
 if (!ADMIN_INTERNAL_KEY) console.log("ADMIN_INTERNAL_KEY не задан — напоминания только на устройства (push), без кабинета BurningHouse.");
 
+/* Аккаунт удалили в Auth (кабинет → «Удалить аккаунт») — Auth сервисам об
+   этом не сообщает, поэтому раз в 6 часов сверяемся со списком аккаунтов и
+   стираем данные тех, кого нет дольше суток (store.purgeMissing). Пустой или
+   неудачный ответ Auth — ничего не трогаем. */
+async function purgeDeletedAccounts() {
+  if (!ADMIN_INTERNAL_KEY) return;
+  const { users } = await authCall("/internal/users", { internal: true });
+  if (!Array.isArray(users) || !users.length) return console.error("Уборка: Auth вернул пустой список — пропускаем");
+  const r = store.purgeMissing(new Set(users.map(u => u.id)));
+  if (r.purged) console.log(`Уборка: стёрты данные ${r.purged} удалённых в Auth аккаунтов`);
+}
+setInterval(() => purgeDeletedAccounts().catch(e => console.error("Уборка:", e.message)), 6 * 3600 * 1000).unref();
+setTimeout(() => purgeDeletedAccounts().catch(e => console.error("Уборка:", e.message)), 60 * 1000).unref();
+
 // ---------- маршруты и SEO ----------
 
 // Пока пояснения не свои — не индексируемся вовсе (robots в index.html тоже
@@ -194,6 +208,12 @@ function routeSeo(rel) {
   }
   if (rel === "garazh") {
     return { title: `Гараж — ${SERVICE_NAME}`, description: "Цвета и детали для машины за рубежи огонька: 3, 7, 14, 30, 50 и 100 дней подготовки к экзамену ПДД подряд.", noindex: true };
+  }
+  if (rel === "konfidencialnost") {
+    return { title: `Политика конфиденциальности — ${SERVICE_NAME}`, description: "Какие данные хранит тренажёр билетов ПДД «Когда на права?», кто их видит и как их удалить." };
+  }
+  if (rel === "udalenie-dannyh") {
+    return { title: `Удаление аккаунта и данных — ${SERVICE_NAME}`, description: "Как удалить данные подготовки и аккаунт BurningHouse в «Когда на права?» — самостоятельно, в пару нажатий." };
   }
   if (rel === "vidzhet") {
     return { title: `Виджет на экран телефона — ${SERVICE_NAME}`, description: "Огонёк и норма дня прямо на главном экране телефона — в приложении для Android.", noindex: true };
@@ -344,6 +364,13 @@ async function handleApi(req, res, pathname) {
   if (pathname === "/api/me" && method === "GET") {
     const tz = new URL(req.url, "http://localhost").searchParams.get("tz");
     return json(res, 200, { user: { id: user.id, name: user.name || user.username }, ...store.me(user.id, tz) });
+  }
+  // «Удалить мои данные» (страница /udalenie-dannyh): весь прогресс в сервисе.
+  // Аккаунт BurningHouse остаётся — он в Auth, удаляется в его кабинете.
+  if (pathname === "/api/me" && method === "DELETE") {
+    store.deleteUserData(user.id);
+    console.log("Данные стёрты по просьбе пользователя:", user.id);
+    return json(res, 200, { deleted: true });
   }
 
   if (pathname === "/api/me/plan" && method === "PUT") {

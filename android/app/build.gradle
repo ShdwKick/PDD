@@ -15,14 +15,15 @@ def siteHost = siteUrl.replaceFirst("^https?://", "").replaceFirst("[:/].*", "")
 
 android {
     namespace "ru.burninghouse.pdd"
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "ru.burninghouse.pdd"
         minSdk 24
-        targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        targetSdk 36
+        // Каждая загрузка в Google Play — новый versionCode.
+        versionCode 2
+        versionName "1.0.1"
         buildConfigField "String", "SITE_URL", "\"${siteUrl}\""
         resValue "string", "site_host", siteHost
         // ?app=android — сайт так узнаёт, что он внутри приложения (страница /vidzhet).

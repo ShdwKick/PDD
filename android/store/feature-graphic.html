@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@1,700;1,800&family=Golos+Text:wght@500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;width:1024px;height:500px;overflow:hidden}
+  body{background:radial-gradient(120% 90% at 70% 110%,#1b2740 0%,#0b1018 55%,#070a10 100%);color:#e8eef6;font-family:"Golos Text",sans-serif;position:relative}
+  .road{position:absolute;right:-120px;bottom:-40px;width:520px;height:300px;background:linear-gradient(180deg,#121a28,#0d131d);clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);opacity:.9}
+  .road i{position:absolute;left:50%;width:8px;margin-left:-4px;background:#c9d3df;opacity:.55;border-radius:2px}
+  .flame{position:absolute;left:78px;top:118px;width:150px;height:150px;filter:drop-shadow(0 0 28px rgba(255,90,26,.55))}
+  .txt{position:absolute;left:258px;top:132px;right:120px}
+  h1{margin:0;font-family:"Exo 2",sans-serif;font-style:italic;font-weight:800;font-size:66px;line-height:1;letter-spacing:-.5px}
+  p{margin:14px 0 0;max-width:540px;font-size:24px;line-height:1.35;color:#8fa3bd}
+  .chips{position:absolute;left:78px;bottom:66px;display:flex;gap:12px}
+  .chips span{padding:9px 16px;border-radius:999px;border:1px solid #1d2a3d;background:#0f1622;font-size:19px;color:#e8eef6}
+  .chips b{color:#30d158;font-weight:500}
+</style></head>
+<body>
+  <div class="road"><i style="top:8%;height:9%"></i><i style="top:30%;height:12%"></i><i style="top:58%;height:16%"></i></div>
+  <svg class="flame" viewBox="0 0 24 24">
+    <defs>
+      <linearGradient id="o" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e0171b"/><stop offset=".6" stop-color="#ff5a1a"/><stop offset="1" stop-color="#ffd60a"/></linearGradient>
+      <linearGradient id="i" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffe45c"/><stop offset="1" stop-color="#fffbe6"/></linearGradient>
+    </defs>
+    <path d="M12 1.2C13.6 5 16.4 6.6 18.2 9.4C21.4 14.4 18.6 22.4 12 22.4C5.4 22.4 2.6 14.4 5.8 9.4C7.2 7.2 9.2 6 10.2 3.4C10.9 5.6 11.4 6.6 12 7.4C12.4 5.6 12.3 3.4 12 1.2Z" fill="url(#o)"/>
+    <path d="M12 1.2C13.6 5 16.4 6.6 18.2 9.4C21.4 14.4 18.6 22.4 12 22.4C5.4 22.4 2.6 14.4 5.8 9.4C7.2 7.2 9.2 6 10.2 3.4C10.9 5.6 11.4 6.6 12 7.4C12.4 5.6 12.3 3.4 12 1.2Z" fill="url(#i)" transform="translate(12 22.4) scale(.52) translate(-12 -22.4)"/>
+  </svg>
+  <div class="txt">
+    <h1>Когда на права?</h1>
+    <p>Билеты ПДД 2026 A и B — экзамен как в ГИБДД и огонёк за каждый день</p>
+  </div>
+  <div class="chips"><span>800 вопросов с пояснениями</span><span>Виджет на экран</span><span><b>●</b> Без рекламы</span></div>
+</body></html>

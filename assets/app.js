@@ -788,6 +788,8 @@ function route() {
   if (p === "/znachki") return renderBadges();
   if (p === "/garazh") return renderGarage();
   if (p === "/vidzhet") return renderWidget();
+  if (p === "/konfidencialnost") return renderPrivacy();
+  if (p === "/udalenie-dannyh") return renderDeletion();
   const mini = /^\/mini\/(\d{1,2})$/.exec(p);
   if (mini && Number(mini[1]) >= 5 && Number(mini[1]) <= 20) return renderMini(Number(mini[1]));
   const t = /^\/tema\/(\d{1,2})$/.exec(p);
@@ -1292,6 +1294,116 @@ function badgeToast({ title, sub, b }) {
 
 /* ---------- страница «Значки и рекорды» ---------- */
 
+/* ---------- политика конфиденциальности и удаление данных ----------
+   Нужны Google Play: ссылка на политику и на «как удалить аккаунт и данные».
+   Текст — по тому, что сервис действительно хранит (lib/store.js). */
+const CONTACT_EMAIL = "4d5.gamedev@gmail.com";
+const POLICY_DATE = "5 октября 2026 г.";
+
+function docPage(title, sub, html) {
+  view.innerHTML = `
+    <div class="ex-header">
+      <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
+      <div class="titles"><h1>${title}</h1><p class="sub">${sub}</p></div>
+    </div>
+    <div class="card doc">${html}</div>`;
+}
+
+async function renderPrivacy() {
+  document.title = `Политика конфиденциальности — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (!stillOn("/konfidencialnost")) return;
+  setDrive(currentStreak(cfg));
+  const mail = `<a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>`;
+  docPage("Конфиденциальность", `Редакция от ${POLICY_DATE}`, `
+    <h2>Кратко</h2>
+    <p>«${esc(SERVICE_NAME)}» (pdd.burninghouse.ru и приложение для Android) — тренажёр билетов ПДД. Мы храним только то, что нужно для подготовки: ваши ответы, огонёк, план и настройки. Рекламы, сторонней аналитики и продажи данных нет.</p>
+
+    <h2>Без входа</h2>
+    <p>Решать билеты можно без аккаунта. Тогда прогресс — ответы, огонёк, план, выбор машины — хранится только на вашем устройстве (в браузере или приложении) и на сервер не отправляется.</p>
+
+    <h2>Со входом: аккаунт BurningHouse</h2>
+    <p>Вход — через общий аккаунт BurningHouse (auth.burninghouse.ru). Логин, пароль, почту, имя и телефон (последние два — по желанию) хранит сервис аккаунтов; сюда приходят только идентификатор, логин и имя.</p>
+    <p>Чтобы прогресс был на всех устройствах, на нашем сервере хранятся:</p>
+    <ul>
+      <li>ваши ответы на вопросы (какой вариант и когда), результаты билетов и экзаменов;</li>
+      <li>огонёк: дни занятий, заморозки, план подготовки, часовой пояс и время напоминания;</li>
+      <li>выбор машины в гараже и текст на её номере;</li>
+      <li>если включили уведомления — адрес подписки браузера на уведомления (его выдаёт браузер, к вам лично он не ведёт);</li>
+      <li>если подключили виджет на экран телефона — ключ виджета (в базе только его отпечаток), который даёт виджету только читать огонёк.</li>
+    </ul>
+
+    <h2>Что видят друзья</h2>
+    <p>Друзья — те, кого вы сами добавили в аккаунте BurningHouse. Они видят ваш огонёк, выполнена ли норма сегодня, сколько билетов сдано, последний экзамен (сдан или нет), число значков и вашу машину. Конкретные ответы и ошибки не видит никто. Друг может «подтолкнуть» вас — придёт уведомление.</p>
+
+    <h2>Кому передаём</h2>
+    <p>Никому не продаём и не передаём для рекламы. Уведомления на устройство доставляет служба уведомлений вашего браузера (например, Google для Chrome) — она получает зашифрованное сообщение, которое прочитать не может. Технические журналы сервера (время и адрес запроса) хранятся ограниченное время — чтобы разбирать сбои и защищаться от атак.</p>
+
+    <h2>Сколько храним и как удалить</h2>
+    <p>Пока у вас есть аккаунт. Удалить данные подготовки или аккаунт целиком можно самостоятельно — как, написано на странице <a href="/udalenie-dannyh" data-link>«Удаление аккаунта и данных»</a>. После удаления аккаунта BurningHouse данные подготовки стираются автоматически в течение двух суток.</p>
+
+    <h2>Дети</h2>
+    <p>Сервис рассчитан на тех, кто готовится к экзамену на права, и не предназначен для детей младше 13 лет.</p>
+
+    <h2>Контакты</h2>
+    <p>Вопросы о данных и просьбы об удалении — на ${mail}. Если политика изменится, новая редакция появится на этой странице с новой датой.</p>`);
+}
+
+/** Стереть прогресс на этом устройстве: всё «bh-pdd-*», кроме метки «запущено из приложения». */
+function wipeLocalProgress() {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("bh-pdd-") && k !== APP_KEY) localStorage.removeItem(k);
+  } catch (e) { console.error("Не удалось стереть данные на устройстве:", e); }
+}
+
+async function renderDeletion() {
+  document.title = `Удаление аккаунта и данных — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (!stillOn("/udalenie-dannyh")) return;
+  setDrive(currentStreak(cfg));
+  const mail = `<a href="mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`${SERVICE_NAME}: удаление данных`)}">${CONTACT_EMAIL}</a>`;
+  const account = auth ? `${esc(auth.authBase)}/` : "https://auth.burninghouse.ru/";
+  docPage("Удаление аккаунта и данных", "Сами, в пару нажатий — без писем и ожидания", `
+    <h2>Удалить только данные подготовки</h2>
+    <p>Сотрутся ответы, огонёк, экзамены, план, машина, ключи виджета и подписки на уведомления — и на сервере, и на этом устройстве. Аккаунт BurningHouse останется.</p>
+    <div class="del-actions">
+      ${me
+        ? `<button type="button" class="btn danger-outline" id="delData">Удалить мои данные подготовки</button>`
+        : auth ? `<p class="muted">Чтобы удалить данные на сервере, войдите — без входа их там нет.</p><button type="button" class="btn" data-login>Войти</button>` : ""}
+      <button type="button" class="btn-mini ghost" id="delLocal">Стереть прогресс только на этом устройстве</button>
+      <p class="muted" id="delStatus" role="status"></p>
+    </div>
+
+    <h2>Удалить аккаунт целиком</h2>
+    <p>Аккаунт BurningHouse удаляется в его кабинете: <a href="${account}" target="_blank" rel="noopener">auth.burninghouse.ru</a> → войдите → внизу «Удалить аккаунт». Удаляются логин, пароль, почта, имя, телефон, друзья и сессии. Данные подготовки в «${esc(SERVICE_NAME)}» после этого стираются автоматически в течение двух суток. Аккаунт общий — пропадёт доступ и к другим сервисам BurningHouse.</p>
+
+    <h2>Нет доступа к аккаунту</h2>
+    <p>Напишите на ${mail} с почты, привязанной к аккаунту, и укажите логин — удалим вручную в течение 30 дней.</p>
+
+    <p class="muted">Подробнее о том, что хранится, — в <a href="/konfidencialnost" data-link>политике конфиденциальности</a>.</p>`);
+
+  view.querySelector("[data-login]")?.addEventListener("click", login);
+  $("delLocal").addEventListener("click", () => {
+    if (!confirm("Стереть прогресс на этом устройстве? Данные на сервере (если вы входили) останутся.")) return;
+    wipeLocalProgress();
+    $("delStatus").textContent = "Прогресс на этом устройстве стёрт.";
+  });
+  $("delData")?.addEventListener("click", async () => {
+    if (!confirm("Удалить все данные подготовки без возможности восстановления? Огонёк, ответы и экзамены пропадут.")) return;
+    $("delData").disabled = true;
+    try {
+      await apiJson("/api/me", { method: "DELETE" });
+      wipeLocalProgress();
+      await loadMe().catch(() => {});
+      $("delStatus").textContent = "Данные подготовки удалены. Аккаунт BurningHouse остался — его можно удалить в кабинете (см. ниже).";
+    } catch (e) {
+      console.error("Удаление данных:", e);
+      $("delStatus").textContent = `Не получилось — проверьте связь и попробуйте ещё раз или напишите на ${CONTACT_EMAIL}.`;
+      $("delData").disabled = false;
+    }
+  });
+}
+
 /* ---------- виджет на экран телефона ----------
    Сам виджет — в приложении для Android (android/): TWA-обёртка этого сайта
    плюс нативный виджет. Сайт выдаёт ему ключ только для чтения огонька
@@ -1378,11 +1490,11 @@ async function renderBadges() {
     <h2 class="section-title">Рекорды</h2>
     <div class="records">
       <div class="rec card"><b>${rec.bestStreak}</b><span>${daysWord(rec.bestStreak)} огонька подряд</span></div>
-      <div class="rec card"><b>${rec.bestCombo}</b><span>верных ответов подряд</span></div>
-      <div class="rec card"><b>${rec.maxDay}</b><span>вопросов за один день</span></div>
+      <div class="rec card"><b>${rec.bestCombo}</b><span>${plural(rec.bestCombo, "верный ответ", "верных ответа", "верных ответов")} подряд</span></div>
+      <div class="rec card"><b>${rec.maxDay}</b><span>${plural(rec.maxDay, "вопрос", "вопроса", "вопросов")} за один день</span></div>
       <div class="rec card"><b>${mmss(rec.fastestExam)}</b><span>самый быстрый сданный экзамен</span></div>
-      <div class="rec card"><b>${rec.perfectTickets}</b><span>билетов на 20 из 20</span></div>
-      <div class="rec card"><b>${rec.perfectExams}</b><span>экзаменов без ошибок</span></div>
+      <div class="rec card"><b>${rec.perfectTickets}</b><span>${plural(rec.perfectTickets, "билет", "билета", "билетов")} на 20 из 20</span></div>
+      <div class="rec card"><b>${rec.perfectExams}</b><span>${plural(rec.perfectExams, "экзамен", "экзамена", "экзаменов")} без ошибок</span></div>
     </div>
     <h2 class="section-title">Значки</h2>
     <ul class="badge-grid">
