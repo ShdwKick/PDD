@@ -5,8 +5,8 @@
     <string name="widget_description">Серия дней и норма на сегодня</string>
     <string name="widget_connect">Нажмите, чтобы подключить</string>
     <string name="widget_loading">Загружаем огонёк…</string>
-    <string name="widget_done">Норма дня выполнена ✓</string>
-    <string name="widget_today">Сегодня %1$d из %2$d</string>
+    <string name="widget_done">Норма ✓</string>
+    <string name="widget_today">Сегодня %1$d/%2$d</string>
     <string name="widget_mini_name">Огонёк мини</string>
     <string name="widget_mini_description">Огонёк и дни подряд — в одну клетку</string>
     <string name="widget_week_name">Неделя</string>

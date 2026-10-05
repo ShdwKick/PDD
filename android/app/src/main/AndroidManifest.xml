@@ -65,6 +65,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Ответ на «вопрос дня» из виджета: только наши PendingIntent, снаружи не открыть. -->
+        <activity
+            android:name=".AnswerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <receiver
             android:name=".StreakWidget"
             android:exported="true"

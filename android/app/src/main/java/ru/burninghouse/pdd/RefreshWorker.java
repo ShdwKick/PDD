@@ -34,6 +34,7 @@ public final class RefreshWorker extends Worker {
     private static final String PERIODIC = "pdd-widget-periodic";
     private static final String NOW = "pdd-widget-now";
     private static final long PERIOD_MINUTES = 15;
+    private static final long SOON_SECONDS = 20;
     private static final int TIMEOUT_MS = 15_000;
     private static final int MAX_BODY = 16 * 1024;
 
@@ -53,6 +54,13 @@ public final class RefreshWorker extends Worker {
 
     static void refreshNow(Context c) {
         OneTimeWorkRequest r = new OneTimeWorkRequest.Builder(RefreshWorker.class).setConstraints(online()).build();
+        WorkManager.getInstance(c).enqueueUniqueWork(NOW, ExistingWorkPolicy.REPLACE, r);
+    }
+
+    /** Обновить чуть позже — когда сайт успеет сохранить ответ из виджета. */
+    static void refreshSoon(Context c) {
+        OneTimeWorkRequest r = new OneTimeWorkRequest.Builder(RefreshWorker.class)
+                .setConstraints(online()).setInitialDelay(SOON_SECONDS, TimeUnit.SECONDS).build();
         WorkManager.getInstance(c).enqueueUniqueWork(NOW, ExistingWorkPolicy.REPLACE, r);
     }
 

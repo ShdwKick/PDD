@@ -314,6 +314,8 @@ const ago = k => addDays(today, -k);
   const full = bank.find(x => x.id === q.id);
   s.answer("w", { questionId: q.id, chosen: full.correct, mode: "mini", rid: R(), tz: TZ });
   eq("ответил — виджет знает, что верно", s.widget(k).question.answered, { chosen: full.correct, correct: true, rightIndex: full.correct });
+  eq("сайту — тот же вопрос дня и что уже ответил", [s.dailyQuestion("w").id, !!s.dailyQuestion("w").answered], [q.id, true]);
+  eq("виджету — правильный вариант, чтобы отметить ответ без сети", s.widget(k).question.correct, full.correct);
 }
 
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");

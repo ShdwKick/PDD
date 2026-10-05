@@ -2192,29 +2192,43 @@ async function renderDaily(id, preset) {
   // ?a= — одноразовый: перезагрузка страницы не должна засчитать ответ второй раз.
   if (location.search) history.replaceState(history.state, "", `/question/${id}`);
 
+  const resultHtml = (chosen, again) => {
+    const ok = chosen === q.correct;
+    return `
+      <div class="result ${ok ? "pass" : "fail"}">
+        <h2>${ok ? "Верно!" : "Неверно"}</h2>
+        <p>${again ? "На вопрос дня вы сегодня уже ответили — второй раз он не засчитывается. Новый — завтра."
+          : ok ? "Ответ засчитан в огонёк. Новый вопрос дня — завтра." : "Вопрос попал в «работу над ошибками» — вернитесь к нему позже."}</p>
+      </div>
+      <div class="daily">
+        ${q.image ? `<img class="m-img" src="/assets/q/${q.image}" width="604" height="225" alt="">` : ""}
+        <p class="m-q">${esc(q.text)}</p>
+        ${ok ? "" : `<p class="m-a bad">Ваш ответ: ${esc(q.answers[chosen])}</p>`}
+        <p class="m-a ok">Правильно: ${esc(q.answers[q.correct])}</p>
+        ${q.tip ? `<p class="m-tip">${esc(q.tip)}${q.ref ? ` <span class="ref">${esc(q.ref)}</span>` : ""}</p>` : ""}
+      </div>
+      <div class="actions result-home">
+        <a class="btn primary" href="/mini/10" data-link>Ещё 10 вопросов</a>
+        <a class="btn" href="/" data-link>На главную</a>
+      </div>`;
+  };
+
+  // Вопрос дня уже отвечен (из виджета или здесь) — показываем итог, второй раз не засчитываем.
+  if (me) {
+    let daily = null;
+    try { daily = (await apiJson("/api/me/daily")).question; } catch (e) { console.error("Вопрос дня:", e); }
+    if (!stillOn(`/question/${id}`)) return;
+    if (daily?.id === id && daily.answered) {
+      $("tStrip").innerHTML = "";
+      $("tSub").textContent = "уже отвечен сегодня";
+      $("tStage").innerHTML = resultHtml(daily.answered.chosen, true);
+      return;
+    }
+  }
+
   const quiz = runQuiz(cfg, {
     questions: [q], mode: "mini", showSource: true,
-    result(answers) {
-      const chosen = answers[0], ok = chosen === q.correct;
-      return {
-        html: `
-          <div class="result ${ok ? "pass" : "fail"}">
-            <h2>${ok ? "Верно!" : "Неверно"}</h2>
-            <p>${ok ? "Ответ засчитан в огонёк. Новый вопрос дня — завтра." : "Вопрос попал в «работу над ошибками» — вернитесь к нему позже."}</p>
-          </div>
-          <div class="daily">
-            ${q.image ? `<img class="m-img" src="/assets/q/${q.image}" width="604" height="225" alt="">` : ""}
-            <p class="m-q">${esc(q.text)}</p>
-            ${ok ? "" : `<p class="m-a bad">Ваш ответ: ${esc(q.answers[chosen])}</p>`}
-            <p class="m-a ok">Правильно: ${esc(q.answers[q.correct])}</p>
-            ${q.tip ? `<p class="m-tip">${esc(q.tip)}${q.ref ? ` <span class="ref">${esc(q.ref)}</span>` : ""}</p>` : ""}
-          </div>
-          <div class="actions result-home">
-            <a class="btn primary" href="/mini/10" data-link>Ещё 10 вопросов</a>
-            <a class="btn" href="/" data-link>На главную</a>
-          </div>`,
-      };
-    },
+    result: answers => ({ html: resultHtml(answers[0], false) }),
   });
   if (Number.isInteger(preset) && preset >= 0 && preset < q.answers.length) {
     quiz.choose(preset);

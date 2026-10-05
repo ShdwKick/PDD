@@ -50,4 +50,35 @@ final class WidgetStore {
     static void setData(Context c, String json) {
         prefs(c).edit().putString(KEY_DATA, json).apply();
     }
+
+    /* ---------- ответ на «вопрос дня», данный в виджете ----------
+       Сервер узнает об ответе, только когда сайт его сохранит, а виджет
+       обновится и того позже. Чтобы в это время не ответили второй раз, ответ
+       помним здесь, с днём: завтра вопрос новый, запись сама теряет силу. */
+    private static final String KEY_ANSWER_DAY = "answer_day";
+    private static final String KEY_ANSWER_Q = "answer_q";
+    private static final String KEY_ANSWER_I = "answer_i";
+
+    static String today() {
+        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+    }
+
+    static void setLocalAnswer(Context c, String questionId, int answer) {
+        prefs(c).edit().putString(KEY_ANSWER_DAY, today()).putString(KEY_ANSWER_Q, questionId).putInt(KEY_ANSWER_I, answer).apply();
+    }
+
+    /** Ответ на этот вопрос сегодня в виджете, или -1. */
+    static int localAnswer(Context c, String questionId) {
+        SharedPreferences p = prefs(c);
+        return today().equals(p.getString(KEY_ANSWER_DAY, null)) && questionId.equals(p.getString(KEY_ANSWER_Q, null))
+                ? p.getInt(KEY_ANSWER_I, -1) : -1;
+    }
+
+    /** Ответил ли сегодня — в виджете или (по данным сервера) где угодно. */
+    static boolean answeredToday(Context c, String questionId) {
+        if (localAnswer(c, questionId) >= 0) return true;
+        JSONObject d = data(c);
+        JSONObject q = d == null ? null : d.optJSONObject("question");
+        return q != null && questionId.equals(q.optString("id")) && today().equals(d.optString("today")) && q.optJSONObject("answered") != null;
+    }
 }

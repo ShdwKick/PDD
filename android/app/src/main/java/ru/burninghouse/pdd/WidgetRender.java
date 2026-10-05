@@ -154,28 +154,39 @@ final class WidgetRender {
         String qid = q.optString("id");
         v.setTextViewText(R.id.qtext, q.optString("text"));
         JSONArray answers = q.optJSONArray("answers");
-        JSONObject answered = q.optJSONObject("answered");
+        int right = q.optInt("correct", -1);
+        // Ответ: с сервера (ответил где угодно) или только что в виджете — ещё до обновления.
+        JSONObject fromServer = q.optJSONObject("answered");
+        int chosen = fromServer != null ? fromServer.optInt("chosen", -1) : WidgetStore.localAnswer(c, qid);
+        boolean answered = chosen >= 0;
+        String explain = "/question/" + Uri.encode(qid) + "?app=android";
         for (int i = 0; i < ANSWERS.length; i++) {
             String a = answers == null ? null : answers.optString(i, null);
             if (a == null) { v.setViewVisibility(ANSWERS[i], View.GONE); continue; }
             v.setViewVisibility(ANSWERS[i], View.VISIBLE);
-            v.setTextViewText(ANSWERS[i], (i + 1) + ". " + a);
-            int bg = R.drawable.widget_answer;
-            if (answered != null) {
-                if (i == answered.optInt("rightIndex", -1)) bg = R.drawable.widget_answer_ok;
-                else if (i == answered.optInt("chosen", -1)) bg = R.drawable.widget_answer_bad;
-            }
+            String mark = !answered ? (i + 1) + ". " : i == right ? "✓ " : i == chosen ? "✗ " : "";
+            v.setTextViewText(ANSWERS[i], mark + a);
+            int bg = !answered ? R.drawable.widget_answer
+                    : i == right ? R.drawable.widget_answer_ok : i == chosen ? R.drawable.widget_answer_bad : R.drawable.widget_answer;
             v.setInt(ANSWERS[i], "setBackgroundResource", bg);
-            // Уже ответил — нажатие просто открывает вопрос с пояснением.
-            String path = "/question/" + Uri.encode(qid) + (answered == null ? "?a=" + i + "&app=android" : "?app=android");
-            v.setOnClickPendingIntent(ANSWERS[i], open(c, path));
+            v.setTextColor(ANSWERS[i], answered && i != right && i != chosen ? 0xFF8FA3BD : 0xFFE8EEF6);
+            // До ответа — ответить (AnswerActivity запомнит и не даст второй раз); после — только пояснение.
+            v.setOnClickPendingIntent(ANSWERS[i], answered ? open(c, explain) : answer(c, qid, i));
         }
-        v.setViewVisibility(R.id.qnote, answered == null ? View.GONE : View.VISIBLE);
-        if (answered != null) {
-            v.setTextViewText(R.id.qnote, c.getString(answered.optBoolean("correct") ? R.string.widget_q_right : R.string.widget_q_wrong));
-        }
-        v.setOnClickPendingIntent(R.id.root, open(c, "/question/" + Uri.encode(qid) + "?app=android"));
+        v.setViewVisibility(R.id.qnote, answered ? View.VISIBLE : View.GONE);
+        if (answered) v.setTextViewText(R.id.qnote, c.getString(chosen == right ? R.string.widget_q_right : R.string.widget_q_wrong));
+        v.setOnClickPendingIntent(R.id.root, open(c, explain));
         return v;
+    }
+
+    /** Нажатие на вариант «вопроса дня» — через AnswerActivity. */
+    private static PendingIntent answer(Context c, String qid, int i) {
+        Intent intent = new Intent(c, AnswerActivity.class)
+                .putExtra(AnswerActivity.EXTRA_QUESTION, qid)
+                .putExtra(AnswerActivity.EXTRA_ANSWER, i)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return PendingIntent.getActivity(c, ("answer:" + qid + ":" + i).hashCode(), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     /* ---------- общее ---------- */

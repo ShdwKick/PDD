@@ -373,6 +373,9 @@ async function handleApi(req, res, pathname) {
     const tz = new URL(req.url, "http://localhost").searchParams.get("tz");
     return json(res, 200, { user: { id: user.id, name: user.name || user.username }, ...store.me(user.id, tz) });
   }
+  if (pathname === "/api/me/daily" && method === "GET") {
+    return json(res, 200, { question: store.dailyQuestion(user.id) });
+  }
   // «Удалить мои данные» (страница /delete-account): весь прогресс в сервисе.
   // Аккаунт BurningHouse остаётся — он в Auth, удаляется в его кабинете.
   if (pathname === "/api/me" && method === "DELETE") {
