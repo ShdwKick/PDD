@@ -1,4 +1,4 @@
-# Сборка из Windows-папки с кириллицей в пути (F:\Рабэта\…): Android Gradle
+﻿# Сборка из Windows-папки с кириллицей в пути (F:\Рабэта\…): Android Gradle
 # Plugin такие пути не любит. Временно подключаем проект как отдельный диск
 # (subst), собираем оттуда и отключаем. Ничего не копируется.
 #
@@ -25,7 +25,7 @@ subst "$($letter):" $PSScriptRoot
 try {
     Push-Location "$($letter):\"
     & .\gradlew.bat $Task @Rest
-    if ($LASTEXITCODE -ne 0) { throw "gradlew $Task: код $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "gradlew ${Task}: код $LASTEXITCODE" }
 } finally {
     Pop-Location
     subst "$($letter):" /D
