@@ -24,11 +24,18 @@
 Нужны JDK 17 и Android SDK (platform 35, build-tools 35). Путь к SDK — в
 `local.properties` (`sdk.dir=C\:\\Users\\…\\AppData\\Local\\Android\\Sdk`).
 
+На Windows из папки с кириллицей в пути (`F:\Рабэта\…`) Android Gradle Plugin
+собирать отказывается — собирайте через `build.ps1`: он временно подключает
+проект отдельным диском (`subst`), JDK 17 берёт из `~/.jdks`, если `JAVA_HOME` другой.
+
 ```bash
-./gradlew assembleDebug                                  # app/build/outputs/apk/debug/
-./gradlew assembleDebug -PsiteUrl=http://10.0.2.2:8798   # против локального node dev.mjs из эмулятора
-./gradlew bundleRelease                                  # .aab для Google Play
+powershell -File build.ps1                                          # app/build/outputs/apk/debug/
+powershell -File build.ps1 assembleDebug -PsiteUrl=http://10.0.2.2:8798   # против локального node dev.mjs из эмулятора
+powershell -File build.ps1 assembleRelease                          # подписанный APK для установки в обход стора
+powershell -File build.ps1 bundleRelease                            # .aab для Google Play
 ```
+
+Из папки без кириллицы — просто `./gradlew assembleDebug` и т. д.
 
 ## Подпись
 
