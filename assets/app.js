@@ -127,7 +127,10 @@ async function apiJson(path, init = {}) {
     headers: init.body ? { "Content-Type": "application/json" } : undefined,
     body: init.body ? JSON.stringify(init.body) : undefined,
   });
-  if (!res.ok) throw Object.assign(new Error(`${path}: HTTP ${res.status}`), { status: res.status });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(`${path}: HTTP ${res.status}`), { status: res.status, data });
+  }
   return res.json();
 }
 
@@ -959,7 +962,7 @@ function friendRow(f, i) {
   let flame = "out", line, action = "";
   if (!f.started) {
     line = `<span class="f-sub">ещё не начинал(а)</span>`;
-    action = f.nudgedToday ? `<span class="f-sent">позвали</span>` : `<button type="button" class="btn-mini" data-nudge="${esc(f.userId)}">Позвать</button>`;
+    action = nudgeAction(f, "Позвать", "позвали");
   } else {
     const s = f.streak;
     flame = flameState(s);
@@ -968,7 +971,7 @@ function friendRow(f, i) {
     const extra = ` · за неделю ${f.week || 0}${f.badges ? ` · значков ${f.badges}` : ""}`;
     line = `<span class="f-sub">${today} · билетов сдано ${f.passedTickets}/40${exam}${extra}</span>`;
     if (s.todayDone) action = `<span class="f-sent ok">молодец</span>`;
-    else action = f.nudgedToday ? `<span class="f-sent">подтолкнули</span>` : `<button type="button" class="btn-mini" data-nudge="${esc(f.userId)}">Подтолкнуть</button>`;
+    else action = nudgeAction(f, "Подтолкнуть", "подтолкнули");
   }
   const days = f.started && f.streak.current ? `${f.streak.current} ${daysWord(f.streak.current)} подряд` : "огонёк не горит";
   // Машина — у тех, кто начал: у остальных гаража ещё нет.
@@ -995,15 +998,27 @@ function openFriendCar(f) {
   });
 }
 
+/* Толкнуть одного друга можно раз в несколько часов (NUDGE_EVERY_MS в
+   lib/store.js): после толчка — «подтолкнули · ещё раз в 18:40». */
+const hhmm = at => new Date(at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+const nudgedText = (done, nextAt) => `${done} · ещё раз в ${hhmm(nextAt)}`;
+
+function nudgeAction(f, label, done) {
+  if (f.nudgeNextAt && f.nudgeNextAt > Date.now()) return `<span class="f-sent">${nudgedText(done, f.nudgeNextAt)}</span>`;
+  return `<button type="button" class="btn-mini" data-nudge="${esc(f.userId)}" data-done="${done}">${label}</button>`;
+}
+
 async function nudge(btn) {
   btn.disabled = true;
-  const label = btn.textContent;
+  const done = btn.dataset.done;
+  const show = text => btn.replaceWith(Object.assign(document.createElement("span"), { className: "f-sent", textContent: text }));
   try {
-    await apiJson(`/api/friends/${encodeURIComponent(btn.dataset.nudge)}/nudge`, { method: "POST", body: {} });
-    btn.replaceWith(Object.assign(document.createElement("span"), { className: "f-sent", textContent: label === "Позвать" ? "позвали" : "подтолкнули" }));
+    const r = await apiJson(`/api/friends/${encodeURIComponent(btn.dataset.nudge)}/nudge`, { method: "POST", body: {} });
+    show(nudgedText(done, r.nextAt));
   } catch (e) {
-    const msg = e.status === 409 ? "уже решил(а)" : e.status === 429 ? "уже сегодня" : "не вышло";
-    btn.replaceWith(Object.assign(document.createElement("span"), { className: "f-sent", textContent: msg }));
+    if (e.status === 409) show("уже решил(а)");
+    else if (e.status === 429 && e.data?.nextAt) show(`можно в ${hhmm(e.data.nextAt)}`);
+    else show("не вышло");
   }
 }
 

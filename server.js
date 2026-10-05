@@ -425,7 +425,8 @@ async function handleApi(req, res, pathname) {
     if (!(data.friends || []).some(f => f.userId === toId)) return json(res, 404, { error: "not_friend" });
     const f = store.friendsFeed(user.id, [toId])[toId];
     if (f.started && f.streak.todayDone) return json(res, 409, { error: "already_done" });
-    if (!store.recordNudge(user.id, toId)) return json(res, 429, { error: "already_nudged" });
+    const nudge = store.recordNudge(user.id, toId);
+    if (!nudge.ok) return json(res, 429, { error: "already_nudged", nextAt: nudge.nextAt });
     const who = user.name || user.username;
     // Текст фиксированный — канал Auth для событий, не для переписки.
     try {
@@ -446,7 +447,7 @@ async function handleApi(req, res, pathname) {
       body: f.started ? "Огонёк ждёт — один билет, и норма на сегодня закрыта." : "«Когда на права?» — билеты ПДД с огоньком за каждый день.",
       url: PUBLIC_URL + "/", tag: "pdd-nudge",
     });
-    return json(res, 200, { ok: true });
+    return json(res, 200, { ok: true, nextAt: nudge.nextAt });
   }
 
   if (pathname === "/api/push/subscribe" && method === "POST") {

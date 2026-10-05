@@ -178,9 +178,23 @@ const ago = k => addDays(today, -k);
   const feed = s.friendsFeed("me", ["a", "ghost"]);
   eq("друг с огоньком", [feed.a.started, feed.a.streak.current, feed.a.streak.todayDone], [true, 3, true]);
   eq("друг, который ещё не открывал", feed.ghost.started, false);
-  eq("первый толчок за день проходит", s.recordNudge("me", "a"), true);
-  eq("второй — нет", s.recordNudge("me", "a"), false);
-  eq("в ленте отмечено «толкнули»", s.friendsFeed("me", ["a"]).a.nudgedToday, true);
+  const t0 = Date.now(), H = 3600 * 1000;
+  eq("первый толчок проходит", s.recordNudge("me", "a", t0), { ok: true, nextAt: t0 + 3 * H });
+  eq("через час — рано, сказано когда можно", s.recordNudge("me", "a", t0 + H), { ok: false, nextAt: t0 + 3 * H });
+  eq("в ленте — когда снова можно", s.friendsFeed("me", ["a"]).a.nudgeNextAt, t0 + 3 * H);
+  eq("через 3 часа — снова можно, в тот же день", s.recordNudge("me", "a", t0 + 3 * H).ok, true);
+  eq("другого друга — можно сразу", s.recordNudge("me", "ghost", t0 + H).ok, true);
+}
+{ // миграция: толчки «раз в день» переезжают в журнал
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdd-"));
+  const { DatabaseSync } = require("node:sqlite");
+  const old = new DatabaseSync(path.join(dir, "pdd.db"));
+  old.exec("CREATE TABLE nudges (from_id TEXT NOT NULL, to_id TEXT NOT NULL, day TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (from_id, to_id, day))");
+  const at = Date.now() - 3600 * 1000;
+  old.prepare("INSERT INTO nudges VALUES ('me', 'a', ?, ?)").run(today, at);
+  old.close();
+  const s = createStore({ dataDir: dir, bank });
+  eq("старый толчок час назад — ещё действует", s.recordNudge("me", "a"), { ok: false, nextAt: at + 3 * 3600 * 1000 });
 }
 { // вечернее напоминание
   const s = fresh();
