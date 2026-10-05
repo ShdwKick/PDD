@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Огонёк и машина» 4×2: серия сверху, машина из гаража (CarPainter) под ней. Заполняет WidgetRender.car. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_car_bg"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <FrameLayout
+            android:layout_width="30dp"
+            android:layout_height="30dp">
+            <ImageView android:id="@+id/flame_outer" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/flame" />
+            <ImageView android:id="@+id/flame_inner" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/flame_inner" />
+            <ImageView android:id="@+id/flame_coal" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/flame_coal" android:visibility="gone" />
+        </FrameLayout>
+        <TextView android:id="@+id/days" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="6dp" android:fontFamily="sans-serif-black" android:text="0"
+            android:textColor="@color/text" android:textSize="24sp" android:textStyle="italic" />
+        <TextView android:id="@+id/label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="10dp" android:gravity="end" android:maxLines="2" android:textColor="@color/text2" android:textSize="12sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/car"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp"
+        android:contentDescription="@string/widget_car_name"
+        android:scaleType="fitCenter" />
+</LinearLayout>

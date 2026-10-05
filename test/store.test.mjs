@@ -299,6 +299,21 @@ const ago = k => addDays(today, -k);
   const keys = Array.from({ length: 6 }, () => s.createWidgetToken("w"));
   eq("старше 5 последних ключей — удалены", [s.widget(t), !!s.widget(keys[5]), !!s.widget(keys[1])], [null, true, true]);
   eq("отзыв — все ключи мертвы", [s.revokeWidgetTokens("w"), s.widget(keys[5])], [5, null]);
+
+  // Неделя и вопрос дня
+  const k = s.createWidgetToken("w");
+  const d = s.widget(k);
+  const mon = createStore.internals.addDays(today, -((new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7));
+  eq("неделя: 7 дней с понедельника, сегодня пока «none», завтра — future",
+    [d.week.length, d.week[0].day, d.week.find(x => x.day === today).state, d.week.filter(x => x.day > today).every(x => x.state === "future")],
+    [7, mon, "none", true]);
+  if (ago(1) >= mon) eq("неделя: вчера норма — done", d.week.find(x => x.day === ago(1)).state, "done");
+  const q = d.question;
+  eq("вопрос дня: без картинки, до 4 ответов, ещё не отвечен", [!!q, q.answers.length <= 4, q.answered], [true, true, null]);
+  eq("вопрос дня — тот же весь день", s.widget(k).question.id, q.id);
+  const full = bank.find(x => x.id === q.id);
+  s.answer("w", { questionId: q.id, chosen: full.correct, mode: "mini", rid: R(), tz: TZ });
+  eq("ответил — виджет знает, что верно", s.widget(k).question.answered, { chosen: full.correct, correct: true, rightIndex: full.correct });
 }
 
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");

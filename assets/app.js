@@ -788,6 +788,11 @@ function route() {
   if (p === "/znachki") return renderBadges();
   if (p === "/garazh") return renderGarage();
   if (p === "/widget") return renderWidget();
+  const dq = /^\/question\/([\w-]{1,40})$/.exec(p);
+  if (dq) {
+    const a = new URLSearchParams(location.search).get("a");
+    return renderDaily(dq[1], a === null || a === "" ? null : Number(a));
+  }
   // Старые адреса (см. MOVED в server.js) — если попали сюда из кэша приложения.
   const moved = { "/konfidencialnost": "/privacy", "/udalenie-dannyh": "/delete-account", "/vidzhet": "/widget" }[p];
   if (moved) return navigate(moved + location.search, { replace: true });
@@ -1896,6 +1901,8 @@ function runQuiz(cfg, o) {
 
   return {
     finish: extra => showResult(extra),
+    // Ответ «снаружи» — вариант, нажатый в виджете «вопрос дня».
+    choose: a => choose(a),
     rerender: () => { if (!finished) renderStrip(); },
     setTimerCleanup: fn => { cleanupTimer = fn; },
     get finished() { return finished; },
@@ -2168,6 +2175,52 @@ async function renderMistakes() {
    целый билет нет времени. Ответ и пояснение — сразу, как в билете. */
 
 const MINI_SIZES = [5, 10, 15];
+
+/* ---------- вопрос дня (виджет на телефоне) ----------
+   Виджет открывает /question/<id>?a=<вариант>: ответ уже выбран — сразу
+   засчитываем (подход из одного вопроса) и показываем пояснение. Без ?a —
+   обычный вопрос, отвечают здесь. */
+async function renderDaily(id, preset) {
+  const cfg = await loadConfig();
+  document.title = `Вопрос дня — ${SERVICE_NAME}`;
+  quizShell({ title: "Вопрос дня", restart: false }, cfg);
+  let q;
+  try { q = (await (await fetch(`/api/questions?ids=${encodeURIComponent(id)}`)).json()).questions[0]; }
+  catch (e) { console.error(e); return loadFailed(); }
+  if (!stillOn(`/question/${id}`)) return;
+  if (!q) return navigate("/", { replace: true });
+  // ?a= — одноразовый: перезагрузка страницы не должна засчитать ответ второй раз.
+  if (location.search) history.replaceState(history.state, "", `/question/${id}`);
+
+  const quiz = runQuiz(cfg, {
+    questions: [q], mode: "mini", showSource: true,
+    result(answers) {
+      const chosen = answers[0], ok = chosen === q.correct;
+      return {
+        html: `
+          <div class="result ${ok ? "pass" : "fail"}">
+            <h2>${ok ? "Верно!" : "Неверно"}</h2>
+            <p>${ok ? "Ответ засчитан в огонёк. Новый вопрос дня — завтра." : "Вопрос попал в «работу над ошибками» — вернитесь к нему позже."}</p>
+          </div>
+          <div class="daily">
+            ${q.image ? `<img class="m-img" src="/assets/q/${q.image}" width="604" height="225" alt="">` : ""}
+            <p class="m-q">${esc(q.text)}</p>
+            ${ok ? "" : `<p class="m-a bad">Ваш ответ: ${esc(q.answers[chosen])}</p>`}
+            <p class="m-a ok">Правильно: ${esc(q.answers[q.correct])}</p>
+            ${q.tip ? `<p class="m-tip">${esc(q.tip)}${q.ref ? ` <span class="ref">${esc(q.ref)}</span>` : ""}</p>` : ""}
+          </div>
+          <div class="actions result-home">
+            <a class="btn primary" href="/mini/10" data-link>Ещё 10 вопросов</a>
+            <a class="btn" href="/" data-link>На главную</a>
+          </div>`,
+      };
+    },
+  });
+  if (Number.isInteger(preset) && preset >= 0 && preset < q.answers.length) {
+    quiz.choose(preset);
+    quiz.finish();
+  }
+}
 
 async function renderMini(n) {
   const cfg = await loadConfig();

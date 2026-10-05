@@ -11,6 +11,7 @@ import android.widget.RemoteViews;
 
 import com.google.androidbrowserhelper.trusted.LauncherActivity;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
@@ -18,9 +19,10 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Как выглядит виджет. Огонёк — как на сайте (assets/app.js flameSvg):
- * горит — норма дня выполнена, цвет по рубежам серии (motivation.js
- * MILESTONES); тлеет — серия есть, норма сегодня ещё нет; погас — серии нет.
+ * Как выглядят виджеты. Данные у всех одни — последний ответ /api/widget
+ * (WidgetStore). Огонёк — как на сайте (assets/app.js flameSvg): горит —
+ * норма дня выполнена, цвет по рубежам серии (motivation.js MILESTONES);
+ * тлеет — серия есть, норма сегодня ещё нет; погас — серии нет.
  */
 final class WidgetRender {
     /** Рубежи серии — как MILESTONES в assets/motivation.js. */
@@ -36,65 +38,153 @@ final class WidgetRender {
             {0xFFB43CFF, 0xFFFFE1F7},
     };
     private static final int DIM = 0xFF2A3646;
+    /** Точки недели — как .w-dots на сайте: норма, заморозка, начато, пусто. */
+    private static final int DOT_DONE = 0xFF30D158, DOT_FROZEN = 0xFF8FDCFF, DOT_PART = 0xFF22603A, DOT_NONE = 0xFF1D2A3D;
+    private static final int[] DOTS = {R.id.d0, R.id.d1, R.id.d2, R.id.d3, R.id.d4, R.id.d5, R.id.d6};
+    private static final int[] LETTERS = {R.id.l0, R.id.l1, R.id.l2, R.id.l3, R.id.l4, R.id.l5, R.id.l6};
+    private static final int[] ANSWERS = {R.id.a0, R.id.a1, R.id.a2, R.id.a3};
+    private static final int CAR_WIDTH_PX = 480;
+    private static final String CONNECT_PATH = "/widget?app=android";
 
     private WidgetRender() {}
 
-    static void updateAll(Context c) {
+    /** Все виды виджетов — для перерисовки и для «есть ли хоть один на экране». */
+    private static final Class<?>[] KINDS = {StreakWidget.class, MiniWidget.class, WeekWidget.class, CarWidget.class, QuestionWidget.class};
+
+    static boolean anyOnScreen(Context c) {
         AppWidgetManager m = AppWidgetManager.getInstance(c);
-        int[] ids = m.getAppWidgetIds(new ComponentName(c, StreakWidget.class));
-        if (ids.length == 0) return;
-        RemoteViews v = build(c);
-        for (int id : ids) m.updateAppWidget(id, v);
+        for (Class<?> k : KINDS) if (m.getAppWidgetIds(new ComponentName(c, k)).length > 0) return true;
+        return false;
     }
 
-    static RemoteViews build(Context c) {
+    static void updateAll(Context c) {
+        AppWidgetManager m = AppWidgetManager.getInstance(c);
+        State s = State.load(c);
+        for (Class<?> k : KINDS) {
+            int[] ids = m.getAppWidgetIds(new ComponentName(c, k));
+            if (ids.length == 0) continue;
+            RemoteViews v = build(c, k, s);
+            for (int id : ids) m.updateAppWidget(id, v);
+        }
+    }
+
+    private static RemoteViews build(Context c, Class<?> kind, State s) {
+        if (kind == MiniWidget.class) return mini(c, s);
+        if (kind == WeekWidget.class) return week(c, s);
+        if (kind == CarWidget.class) return car(c, s);
+        if (kind == QuestionWidget.class) return question(c, s);
+        return streak(c, s);
+    }
+
+    /* ---------- виды ---------- */
+
+    private static RemoteViews streak(Context c, State s) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_streak);
-        if (WidgetStore.token(c) == null) {
-            flame(v, "out", 0);
-            v.setTextViewText(R.id.days, "—");
-            v.setTextViewText(R.id.label, c.getString(R.string.widget_connect));
-            v.setViewVisibility(R.id.progress, View.GONE);
-            v.setViewVisibility(R.id.today, View.GONE);
-            v.setOnClickPendingIntent(R.id.root, open(c, "/widget?app=android"));
-            return v;
+        flame(v, s);
+        v.setOnClickPendingIntent(R.id.root, open(c, s.connected ? "/?app=android" : CONNECT_PATH));
+        v.setTextViewText(R.id.days, s.daysText());
+        v.setTextViewText(R.id.label, s.label(c));
+        boolean ready = s.data != null;
+        v.setViewVisibility(R.id.progress, ready ? View.VISIBLE : View.GONE);
+        v.setViewVisibility(R.id.today, ready ? View.VISIBLE : View.GONE);
+        if (ready) {
+            v.setProgressBar(R.id.progress, s.target, Math.min(s.count, s.target), false);
+            v.setTextViewText(R.id.today, s.todayText(c));
         }
-        v.setOnClickPendingIntent(R.id.root, open(c, "/?app=android"));
-        JSONObject d = WidgetStore.data(c);
-        if (d == null) {
-            flame(v, "out", 0);
-            v.setTextViewText(R.id.days, "…");
-            v.setTextViewText(R.id.label, c.getString(R.string.widget_loading));
-            v.setViewVisibility(R.id.progress, View.GONE);
-            v.setViewVisibility(R.id.today, View.GONE);
-            return v;
-        }
-
-        int current = d.optInt("current");
-        int target = Math.max(1, d.optInt("target", 20));
-        int count = d.optInt("todayCount");
-        boolean done = d.optBoolean("todayDone");
-        // Данные со вчера (ночью не было сети) — сегодня ещё ничего не решено.
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
-        if (!today.equals(d.optString("today"))) {
-            count = 0;
-            done = false;
-        }
-
-        flame(v, done ? "lit" : current > 0 ? "ember" : "out", current);
-        v.setTextViewText(R.id.days, String.valueOf(current));
-        v.setTextViewText(R.id.label, daysInRow(current));
-        v.setViewVisibility(R.id.progress, View.VISIBLE);
-        v.setProgressBar(R.id.progress, target, Math.min(count, target), false);
-        v.setViewVisibility(R.id.today, View.VISIBLE);
-        v.setTextViewText(R.id.today, done
-                ? c.getString(R.string.widget_done)
-                : c.getString(R.string.widget_today, count, target));
         return v;
     }
 
-    private static void flame(RemoteViews v, String state, int current) {
+    private static RemoteViews mini(Context c, State s) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_mini);
+        flame(v, s);
+        v.setOnClickPendingIntent(R.id.root, open(c, s.connected ? "/?app=android" : CONNECT_PATH));
+        v.setTextViewText(R.id.days, s.daysText());
+        return v;
+    }
+
+    private static RemoteViews week(Context c, State s) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_week);
+        flame(v, s);
+        v.setOnClickPendingIntent(R.id.root, open(c, s.connected ? "/?app=android" : CONNECT_PATH));
+        v.setTextViewText(R.id.days, s.daysText());
+        v.setTextViewText(R.id.label, s.data == null ? s.label(c) : s.todayText(c));
+        JSONArray week = s.data == null ? null : s.data.optJSONArray("week");
+        int done = 0;
+        for (int i = 0; i < 7; i++) {
+            JSONObject d = week == null ? null : week.optJSONObject(i);
+            String state = d == null ? "future" : d.optString("state", "none");
+            // Данные со вчера — сегодняшний день ещё не начат, что бы ни пришло.
+            if (d != null && d.optString("day").equals(s.today) && s.stale) state = "none";
+            if (d != null && s.stale && d.optString("day").compareTo(s.today) > 0) state = "future";
+            int color = state.equals("done") ? DOT_DONE : state.equals("frozen") ? DOT_FROZEN : state.equals("partial") ? DOT_PART : DOT_NONE;
+            if (state.equals("done") || state.equals("frozen")) done++;
+            v.setInt(DOTS[i], "setColorFilter", color);
+            v.setInt(DOTS[i], "setImageAlpha", state.equals("future") ? 90 : 255);
+            boolean isToday = d != null && d.optString("day").equals(s.today);
+            v.setTextColor(LETTERS[i], isToday ? 0xFFE8EEF6 : 0xFF8FA3BD);
+        }
+        v.setTextViewText(R.id.week_total, s.data == null ? "" : c.getString(R.string.widget_week_total, done));
+        return v;
+    }
+
+    private static RemoteViews car(Context c, State s) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_car);
+        flame(v, s);
+        v.setOnClickPendingIntent(R.id.root, open(c, s.connected ? "/garazh?app=android" : CONNECT_PATH));
+        v.setTextViewText(R.id.days, s.daysText());
+        v.setTextViewText(R.id.label, s.data == null ? s.label(c) : s.todayText(c));
+        JSONObject car = s.data == null ? null : s.data.optJSONObject("car");
+        v.setImageViewBitmap(R.id.car, CarPainter.draw(car, CAR_WIDTH_PX));
+        return v;
+    }
+
+    private static RemoteViews question(Context c, State s) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_question);
+        flame(v, s);
+        v.setTextViewText(R.id.days, s.daysText());
+        JSONObject q = s.data == null ? null : s.data.optJSONObject("question");
+        // Вопрос со вчера (не было сети) не предлагаем — он уже не «дня».
+        if (q == null || s.stale) {
+            v.setTextViewText(R.id.qtext, s.connected ? c.getString(R.string.widget_loading) : c.getString(R.string.widget_connect));
+            for (int id : ANSWERS) v.setViewVisibility(id, View.GONE);
+            v.setViewVisibility(R.id.qnote, View.GONE);
+            v.setOnClickPendingIntent(R.id.root, open(c, s.connected ? "/?app=android" : CONNECT_PATH));
+            return v;
+        }
+        String qid = q.optString("id");
+        v.setTextViewText(R.id.qtext, q.optString("text"));
+        JSONArray answers = q.optJSONArray("answers");
+        JSONObject answered = q.optJSONObject("answered");
+        for (int i = 0; i < ANSWERS.length; i++) {
+            String a = answers == null ? null : answers.optString(i, null);
+            if (a == null) { v.setViewVisibility(ANSWERS[i], View.GONE); continue; }
+            v.setViewVisibility(ANSWERS[i], View.VISIBLE);
+            v.setTextViewText(ANSWERS[i], (i + 1) + ". " + a);
+            int bg = R.drawable.widget_answer;
+            if (answered != null) {
+                if (i == answered.optInt("rightIndex", -1)) bg = R.drawable.widget_answer_ok;
+                else if (i == answered.optInt("chosen", -1)) bg = R.drawable.widget_answer_bad;
+            }
+            v.setInt(ANSWERS[i], "setBackgroundResource", bg);
+            // Уже ответил — нажатие просто открывает вопрос с пояснением.
+            String path = "/question/" + Uri.encode(qid) + (answered == null ? "?a=" + i + "&app=android" : "?app=android");
+            v.setOnClickPendingIntent(ANSWERS[i], open(c, path));
+        }
+        v.setViewVisibility(R.id.qnote, answered == null ? View.GONE : View.VISIBLE);
+        if (answered != null) {
+            v.setTextViewText(R.id.qnote, c.getString(answered.optBoolean("correct") ? R.string.widget_q_right : R.string.widget_q_wrong));
+        }
+        v.setOnClickPendingIntent(R.id.root, open(c, "/question/" + Uri.encode(qid) + "?app=android"));
+        return v;
+    }
+
+    /* ---------- общее ---------- */
+
+    /** Огонёк: в каждом макете три слоя с одинаковыми id (flame_outer/inner/coal). */
+    private static void flame(RemoteViews v, State s) {
+        String state = s.done ? "lit" : s.current > 0 ? "ember" : "out";
         boolean lit = state.equals("lit");
-        int[] colors = TIERS[tier(current)];
+        int[] colors = TIERS[tier(s.current)];
         v.setInt(R.id.flame_outer, "setColorFilter", lit ? colors[0] : DIM);
         v.setInt(R.id.flame_inner, "setColorFilter", colors[1]);
         v.setViewVisibility(R.id.flame_inner, lit ? View.VISIBLE : View.GONE);
@@ -108,7 +198,7 @@ final class WidgetRender {
     }
 
     /** «1 день подряд», «3 дня подряд», «5 дней подряд». */
-    private static String daysInRow(int n) {
+    static String daysInRow(int n) {
         int m10 = n % 10, m100 = n % 100;
         String w = m10 == 1 && m100 != 11 ? "день"
                 : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "дня" : "дней";
@@ -120,5 +210,42 @@ final class WidgetRender {
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL + path), c, LauncherActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return PendingIntent.getActivity(c, path.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** Что показываем — разобранный один раз ответ /api/widget. */
+    private static final class State {
+        boolean connected;
+        JSONObject data;
+        int current, target = 20, count;
+        boolean done, stale;
+        String today;
+
+        static State load(Context c) {
+            State s = new State();
+            s.today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+            s.connected = WidgetStore.token(c) != null;
+            s.data = s.connected ? WidgetStore.data(c) : null;
+            if (s.data == null) return s;
+            s.current = s.data.optInt("current");
+            s.target = Math.max(1, s.data.optInt("target", 20));
+            s.count = s.data.optInt("todayCount");
+            s.done = s.data.optBoolean("todayDone");
+            // Данные со вчера (ночью не было сети) — сегодня ещё ничего не решено.
+            s.stale = !s.today.equals(s.data.optString("today"));
+            if (s.stale) { s.count = 0; s.done = false; }
+            return s;
+        }
+
+        String daysText() {
+            return !connected ? "—" : data == null ? "…" : String.valueOf(current);
+        }
+
+        String label(Context c) {
+            return !connected ? c.getString(R.string.widget_connect) : data == null ? c.getString(R.string.widget_loading) : daysInRow(current);
+        }
+
+        String todayText(Context c) {
+            return done ? c.getString(R.string.widget_done) : c.getString(R.string.widget_today, count, target);
+        }
     }
 }

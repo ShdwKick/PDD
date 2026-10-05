@@ -269,7 +269,8 @@ a{color:inherit}
 .qcard > .section-title{margin-top:6px}
 
 .mistakes{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
-.mistakes li{padding:12px 14px;border-radius:8px;background:var(--el);border:1px solid var(--el-edge)}
+.mistakes li,.daily{padding:12px 14px;border-radius:8px;background:var(--el);border:1px solid var(--el-edge)}
+.daily{margin-bottom:6px}
 .m-q{font-weight:600;line-height:1.45;display:flex;gap:10px}
 .m-num{flex:none;min-width:26px;height:24px;padding:0 6px;border-radius:4px;display:grid;place-items:center;font-family:var(--font-dash);font-weight:700;font-size:13px;background:var(--bad);color:var(--on-bad)}
 .m-img{display:block;width:100%;max-width:420px;height:auto;margin-top:10px;border-radius:6px}

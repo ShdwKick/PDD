@@ -219,6 +219,10 @@ function routeSeo(rel) {
   if (rel === "delete-account") {
     return { title: `Удаление аккаунта и данных — ${SERVICE_NAME}`, description: "Как удалить данные подготовки и аккаунт BurningHouse в «Когда на права?» — самостоятельно, в пару нажатий." };
   }
+  // «Вопрос дня» из виджета — у каждого свой, искать тут нечего.
+  if (/^question\/[0-9a-f]{32}$/.test(rel)) {
+    return { title: `Вопрос дня — ${SERVICE_NAME}`, description: "Вопрос из билетов ПДД с ответом и пояснением.", noindex: true };
+  }
   if (rel === "widget") {
     return { title: `Виджет на экран телефона — ${SERVICE_NAME}`, description: "Огонёк и норма дня прямо на главном экране телефона — в приложении для Android.", noindex: true };
   }
