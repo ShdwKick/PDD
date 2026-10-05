@@ -265,6 +265,7 @@ a{color:inherit}
 .result.fail h2{color:var(--bad)}
 .result > p{max-width:44ch;line-height:1.5;color:var(--text-2)}
 .result .actions{justify-content:center;margin-top:14px}
+.result .queued-note{margin-top:12px;padding:8px 12px;border-radius:10px;font-size:13.5px;color:var(--text);background:var(--el);border:1px dashed var(--el-edge)}
 .qcard > .section-title{margin-top:6px}
 
 .mistakes{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:22px}

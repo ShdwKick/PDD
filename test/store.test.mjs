@@ -155,6 +155,21 @@ const ago = k => addDays(today, -k);
   eq("экзамен сохранён", [r.passed, r.summary.exams.count, r.summary.exams.passed], [true, 1, 1]);
   eq("мусор вместо ответов отвергается", s.finishExam("u", [{ questionId: "x", chosen: 0, block: 1 }], 1, false), null);
 }
+{ // итоги из очереди без сети: повтор с тем же rid не считается дважды, время — своё
+  const s = fresh();
+  const ex = bank.filter(q => q.ticket === 3).map(q => ({ questionId: q.id, chosen: q.correct, block: Math.ceil(q.num / 5), extra: false }));
+  const hourAgo = Date.now() - 3600 * 1000;
+  s.finishExam("u", ex, 600, false, { rid: "exam-rid-0001", at: hourAgo });
+  const again = s.finishExam("u", ex, 600, false, { rid: "exam-rid-0001", at: hourAgo });
+  eq("экзамен: повтор из очереди — не второй экзамен", [again.duplicate, again.summary.exams.count, again.summary.exams.last.at], [true, 1, hourAgo]);
+  const qs = bank.filter(q => q.ticket === 7);
+  const ok = Object.fromEntries(qs.map(q => [q.num, q.correct]));
+  s.finishTicket("u", 7, ok, { rid: "ticket-rid-0001", at: hourAgo });
+  const t2 = s.finishTicket("u", 7, ok, { rid: "ticket-rid-0001", at: hourAgo });
+  eq("билет: повтор из очереди — один заход, сдан", [t2.duplicate, t2.summary.tickets[7].runs, t2.summary.passedTickets], [true, 1, 1]);
+  eq("кривой rid — отказ", s.finishTicket("u", 7, ok, { rid: "<x>" }), null);
+  eq("без rid (старый клиент) — как раньше", s.finishTicket("u", 7, ok).summary.tickets[7].runs, 2);
+}
 
 { // лента друзей и толчки
   const s = fresh();

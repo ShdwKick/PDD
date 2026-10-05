@@ -281,8 +281,10 @@ export function outboxPush(item) {
   list.push(item);
   try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-500))); } catch {}
 }
-export function outboxDrop(rid) {
-  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox().filter(x => x.rid !== rid))); } catch {}
+/** Убрать из очереди отправленное — один rid или список. */
+export function outboxDrop(rids) {
+  const gone = new Set([].concat(rids));
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox().filter(x => !gone.has(x.rid)))); } catch {}
 }
 
 /** «вопрос», «вопроса», «вопросов». */

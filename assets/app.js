@@ -80,6 +80,12 @@ async function loadConfig() {
 }
 
 const ticketCache = new Map();
+/** Картинки всех вопросов заранее: пропадёт сеть посреди билета — дальше
+ * вопросы всё равно с картинками (sw.js кэширует /assets/q/ навсегда). */
+function preloadImages(questions) {
+  for (const q of questions) if (q.image) new Image().src = `/assets/q/${q.image}`;
+}
+
 async function loadTicket(n) {
   if (!ticketCache.has(n)) {
     const res = await fetch(`/api/tickets/${n}`);
@@ -156,6 +162,8 @@ async function submitAnswers(list, cfg) {
   if (!me) return guest();
   const items = list.map(x => ({ questionId: x.q.id, chosen: x.chosen, mode: x.mode, rid: newRid(), at: x.at, tz: TZ }));
   try {
+    // Что-то уже ждёт в очереди — встаём за ним: итог билета не должен уйти раньше своих ответов.
+    if (outbox().length) throw new Error("очередь не пуста");
     const r = await apiJson("/api/answers/batch", { method: "POST", body: { items } });
     applyServer(r);
     return { lit: r.lit };
@@ -163,25 +171,93 @@ async function submitAnswers(list, cfg) {
     // Вход протух насовсем — дальше человек гость, ответы не теряем.
     if (e.name === "AuthRequiredError") { setMe(null); applyAuthButton(); return guest(); }
     for (const item of items) outboxPush(item);
+    scheduleFlush();
     const st = me.streak, before = st.todayCount;
     st.todayCount += items.length;
     const lit = before < st.target && st.todayCount >= st.target;
     if (lit) { st.todayDone = true; st.current++; }
     setMe(me);
-    return { lit };
+    return { lit, queued: true };
   }
 }
 
-async function flushOutbox() {
-  for (const item of outbox()) {
-    try {
-      applyServer(await apiJson("/api/answers", { method: "POST", body: item }));
-      outboxDrop(item.rid);
-    } catch (e) {
-      if (e.status === 400) outboxDrop(item.rid); // вопрос убрали из базы — не держим вечно
-      else break;                                 // сети всё ещё нет — попробуем в следующий раз
-    }
+/* Очередь без сети (progress.js outbox): ответы и итоги билетов/экзаменов в
+   том порядке, в каком их дали. У каждого rid — сервер не засчитает повтор,
+   если запрос дошёл, а ответ потерялся. Время — своё (at): ответ из поезда
+   идёт в тот день, когда его дали. Шлём при запуске, когда сеть вернулась,
+   когда вкладку открыли снова и раз в полминуты, пока что-то ждёт. */
+const BATCH_MAX = 60; // столько принимает /api/answers/batch
+const FLUSH_EVERY_MS = 30 * 1000;
+
+function sendQueued(item) {
+  if (item.kind === "ticket") {
+    return apiJson(`/api/tickets/${item.ticket}/finish`, { method: "POST", body: { answers: item.answers, rid: item.rid, at: item.at } });
   }
+  if (item.kind === "exam") {
+    return apiJson("/api/exams", { method: "POST", body: { items: item.items, seconds: item.seconds, timeout: item.timeout, rid: item.rid, at: item.at } });
+  }
+  throw new Error(`неизвестное в очереди: ${item.kind}`);
+}
+
+let flushing = null;
+/** rerender — освежить экран, если что-то ушло (при запуске не нужно: экран ещё рисуется). */
+function flushOutbox(rerender = true) {
+  if (flushing) return flushing;
+  flushing = (async () => {
+    let sent = 0;
+    while (me && signedIn()) {
+      const list = outbox();
+      if (!list.length) break;
+      // Ответы (у старых записей kind нет) — подряд идущие пачкой, итоги — по одному.
+      const head = list[0];
+      const firstResult = list.findIndex(x => x.kind);
+      const chunk = head.kind ? [head] : list.slice(0, firstResult < 0 ? list.length : firstResult).slice(0, BATCH_MAX);
+      try {
+        applyServer(head.kind ? await sendQueued(head) : await apiJson("/api/answers/batch", { method: "POST", body: { items: chunk } }));
+        outboxDrop(chunk.map(x => x.rid));
+        sent += chunk.length;
+      } catch (e) {
+        if (e.status === 400) { outboxDrop(chunk.map(x => x.rid)); continue; } // вопрос убрали из базы, кривое — не держим вечно
+        if (e.name === "AuthRequiredError") { setMe(null); applyAuthButton(); }
+        break; // сети всё ещё нет (или нужен вход) — очередь цела, попробуем позже
+      }
+    }
+    if (sent && rerender) {
+      // Огонёк и билеты на экране — по свежим данным сервера.
+      if ($("tStreak")) $("tStreak").innerHTML = streakChip(currentStreak(config || {}));
+      if (stillOn("") && !document.querySelector(".acc-backdrop")) route();
+    }
+  })().catch(e => console.error("Очередь не отправилась:", e)).finally(() => { flushing = null; });
+  return flushing;
+}
+
+let flushTimer = 0;
+function scheduleFlush() {
+  if (flushTimer) return;
+  flushTimer = setInterval(() => {
+    if (!outbox().length) { clearInterval(flushTimer); flushTimer = 0; return; }
+    if (navigator.onLine !== false) flushOutbox();
+  }, FLUSH_EVERY_MS);
+}
+addEventListener("online", () => flushOutbox());
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && outbox().length) flushOutbox(); });
+
+/** Под итогом: без сети ничего не потерялось — уйдёт само. */
+function queuedNote() {
+  const box = document.querySelector("#tStage .result");
+  if (!box || box.querySelector(".queued-note")) return;
+  box.insertAdjacentHTML("beforeend", `<p class="queued-note" role="status">Нет сети — результат сохранён на телефоне и отправится сам, когда связь появится.</p>`);
+}
+
+/** Итог билета/экзамена: сразу, а без сети — в очередь, за своими ответами. */
+function sendResult(item, send) {
+  const queue = () => { outboxPush(item); scheduleFlush(); return { queued: true }; };
+  if (outbox().length) return Promise.resolve(queue());
+  return send().then(r => { applyServer(r); return r; }).catch(e => {
+    if (e.status === 400) { console.error("Итог отвергнут сервером:", e); return null; }
+    if (e.name === "AuthRequiredError") { setMe(null); applyAuthButton(); return null; }
+    return queue();
+  });
 }
 
 /* Кнопка входа в шапке: гость — войти, вошедший — выйти. */
@@ -281,7 +357,8 @@ async function initAuth() {
   if (signedIn()) {
     try { me = JSON.parse(localStorage.getItem(ME_CACHE)); } catch { me = null; }
     try {
-      await flushOutbox();
+      await flushOutbox(false);
+      if (outbox().length) scheduleFlush();
       await loadMe();
       if (!me.guestImported && hasGuestStats()) {
         await apiJson("/api/import-guest", { method: "POST", body: exportGuest() });
@@ -1531,7 +1608,8 @@ function runQuiz(cfg, o) {
     const party = r.celebrate ?? (allRight ? { kind: "perfect", sub: `Все ${questions.length} верно` } : null);
     if (party) setTimeout(() => celebrateFinish(party), 250);
     // Огонёк — после праздника итога: если этот подход закрыл норму дня.
-    recorded.then(({ lit }) => {
+    recorded.then(({ lit, queued }) => {
+      if (queued) queuedNote();
       const st = currentStreak(cfg);
       if ($("tStreak")) $("tStreak").innerHTML = streakChip(st);
       setDrive(st);
@@ -1627,6 +1705,7 @@ async function renderTicket(n) {
   let questions;
   try { questions = await loadTicket(n); } catch (e) { console.error(e); return loadFailed(); }
   if (!stillOn(`/bilet/${n}`)) return;
+  preloadImages(questions);
 
   // Незаконченный билет хранится по номеру вопроса, решатель — по индексу.
   const run = getRun(n);
@@ -1652,9 +1731,16 @@ async function renderTicket(n) {
       let saved = null;
       if (me) {
         resetRun(n);
+        // Сразу видно у себя — и без сети билет не останется «не решён».
+        const prev = me.summary.tickets[n];
+        me.summary.tickets[n] = { best: Math.max(prev?.best ?? 0, correct), last: correct, passed: v.passed,
+          everPassed: !!prev?.everPassed || v.passed, runs: (prev?.runs || 0) + 1, at: Date.now() };
+        me.summary.passedTickets = Object.values(me.summary.tickets).filter(t => t.passed).length;
+        setMe(me);
         // Итог — после ответов: факты в ответе сервера должны их уже учитывать.
-        saved = recorded.then(() => apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum } }))
-          .then(applyServer).catch(e => console.error("Итог билета не сохранился:", e));
+        const item = { kind: "ticket", ticket: n, answers: byNum, rid: newRid(), at: Date.now() };
+        saved = recorded.then(() => sendResult(item, () => apiJson(`/api/tickets/${n}/finish`, { method: "POST", body: { answers: byNum, rid: item.rid, at: item.at } })))
+          .then(r => { if (r?.queued) queuedNote(); });
       } else finishGuestRun(n, correct, v.passed);
       const nextN = n % cfg.tickets + 1;
       return {
@@ -1707,6 +1793,7 @@ async function renderExam() {
   if (!stillOn("/ekzamen")) return;
 
   const questions = main.map(q => ({ ...q, block: Math.ceil(q.num / 5), extra: false }));
+  preloadImages(questions);
   const usedTickets = [mainT];
   const wrongByBlock = [0, 0, 0, 0];
   const pendingExtra = [];     // блоки, за которые ещё не выданы доп. вопросы
@@ -1740,9 +1827,14 @@ async function renderExam() {
       const seconds = Math.round((Date.now() - started) / 1000);
       const items = questions.map((q, i) => i in answers ? { questionId: q.id, chosen: answers[i], block: q.block, extra: q.extra } : null).filter(Boolean);
       let saved = null;
-      if (me) saved = recorded.then(() => apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout } }))
-        .then(applyServer).catch(e => console.error("Экзамен не сохранился:", e));
-      else recordGuestExam({ passed, reason, wrong, seconds });
+      if (me) {
+        const ex = me.summary.exams;
+        me.summary.exams = { count: ex.count + 1, passed: ex.passed + (passed ? 1 : 0), last: { at: Date.now(), passed, reason, wrong } };
+        setMe(me);
+        const item = { kind: "exam", items, seconds, timeout, rid: newRid(), at: Date.now() };
+        saved = recorded.then(() => sendResult(item, () => apiJson("/api/exams", { method: "POST", body: { items, seconds, timeout, rid: item.rid, at: item.at } })))
+          .then(r => { if (r?.queued) queuedNote(); });
+      } else recordGuestExam({ passed, reason, wrong, seconds });
       const mm = Math.floor(seconds / 60), ss = String(seconds % 60).padStart(2, "0");
       return {
         html: `
@@ -1771,7 +1863,7 @@ async function renderExam() {
       const t = pick(usedTickets);
       usedTickets.push(t);
       let qs;
-      try { qs = await loadTicket(t); } catch { continue; }
+      try { qs = await loadTicket(t); preloadImages(qs); } catch { continue; }
       for (const q of qs.filter(x => Math.ceil(x.num / 5) === block)) questions.push({ ...q, block, extra: true });
       deadline += 5 * 60 * 1000;
     }

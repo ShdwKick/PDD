@@ -8,12 +8,14 @@
      «сеть, при неудаче — кэш», чтобы обновления доходили сразу;
    - картинки вопросов (/assets/q/) — кэш-первым: имена — хеш содержимого;
    - билеты и темы (/api/tickets, /api/topics, /api/config) — «сеть, при
-     неудаче — кэш»: без сети решать можно то, что уже открывали;
+     неудаче — кэш»; все билеты (тексты, ~сотни КБ) докачиваются в фоне после
+     установки — без сети открывается любой, а не только уже открытые.
+     Картинки билета грузятся заранее, когда его открыли (app.js);
    - личное (/api/me, /api/answers, ...) и всё не-GET — никогда: ответы без
      сети и так уходят в очередь (outbox в app.js).
    Навигация без сети — закэшированный index.html, путь разберёт роутер. */
 
-const CACHE = "pdd-v19";
+const CACHE = "pdd-v20";
 const SHELL = [
   "/", "/assets/styles.css", "/assets/brand.css", "/assets/app.js", "/assets/progress.js", "/assets/motivation.js",
   "/assets/auth-client.js", "/assets/favicon.svg", "/manifest.webmanifest",
@@ -27,8 +29,23 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim()));
+      .then(() => self.clients.claim())
+      .then(() => warmTickets()));
 });
+
+/** Все билеты — в кэш, по очереди и без шума: не вышло — догрузятся при открытии. */
+async function warmTickets() {
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    const c = await caches.open(CACHE);
+    for (let n = 1; n <= (cfg.tickets | 0); n++) {
+      const url = `/api/tickets/${n}`;
+      if (await c.match(url)) continue;
+      const res = await fetch(url);
+      if (res.ok) await c.put(url, res);
+    }
+  } catch { /* без сети — не страшно, билеты кэшируются и по мере открытия */ }
+}
 
 function networkFirst(req, fallbackKey) {
   return fetch(req).then(res => {

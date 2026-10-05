@@ -360,7 +360,8 @@ async function handleApi(req, res, pathname) {
 
   const f = /^\/api\/tickets\/(\d{1,2})\/finish$/.exec(pathname);
   if (f && method === "POST") {
-    const r = store.finishTicket(user.id, Number(f[1]), (await readJson(req)).answers);
+    const b = await readJson(req);
+    const r = store.finishTicket(user.id, Number(f[1]), b.answers, { rid: b.rid, at: Number(b.at) });
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_ticket" });
   }
 
@@ -437,7 +438,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === "/api/exams" && method === "POST") {
     const b = await readJson(req, 64 * 1024);
-    const r = store.finishExam(user.id, b.items, Number(b.seconds), !!b.timeout);
+    const r = store.finishExam(user.id, b.items, Number(b.seconds), !!b.timeout, { rid: b.rid, at: Number(b.at) });
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_exam" });
   }
 
