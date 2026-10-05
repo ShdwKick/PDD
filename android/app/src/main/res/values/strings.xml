@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Когда на права?</string>
+    <string name="widget_name">Огонёк</string>
+    <string name="widget_description">Серия дней и норма на сегодня</string>
+    <string name="widget_connect">Нажмите, чтобы подключить</string>
+    <string name="widget_loading">Загружаем огонёк…</string>
+    <string name="widget_done">Норма дня выполнена ✓</string>
+    <string name="widget_today">Сегодня %1$d из %2$d</string>
+    <string name="connect_ok">Виджет подключён</string>
+    <string name="connect_ok_add">Виджет подключён. Добавьте его: долгое нажатие на главном экране → Виджеты → «Когда на права?»</string>
+    <string name="connect_bad">Не получилось подключить виджет — откройте «Виджет на экран» в приложении ещё раз</string>
+    <!-- Связь с сайтом для TWA; вторая половина — /.well-known/assetlinks.json (server.js). -->
+    <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://pdd.burninghouse.ru\"}}]</string>
+</resources>

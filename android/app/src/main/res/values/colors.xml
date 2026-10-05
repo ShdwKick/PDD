@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Как theme_color / background_color в manifest.webmanifest и карточки на сайте. -->
+    <color name="bg">#FF0B1018</color>
+    <color name="card">#F20F1622</color>
+    <color name="card_edge">#FF1D2A3D</color>
+    <color name="text">#FFE8EEF6</color>
+    <color name="text2">#FF8FA3BD</color>
+    <color name="ok">#FF30D158</color>
+</resources>

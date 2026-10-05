@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+# Ключ подписи и пароли к нему — никогда в git (см. README.md, «Подпись»).
+keystore.properties
+*.jks
+*.keystore

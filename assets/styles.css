@@ -1079,3 +1079,10 @@ a.lamp:hover{filter:brightness(1.1)}
 .hint:hover .hint-pop,.hint:focus-within .hint-pop,.hint.open .hint-pop{opacity:1;visibility:visible;transform:none}
 .w-day.future i{background:transparent;box-shadow:inset 0 0 0 1px var(--el-edge)}
 .w-day.future small{opacity:.5}
+
+/* ---- виджет на экран (страница /vidzhet) ---- */
+.w-card{padding:16px}
+.w-steps{margin:0 0 14px 18px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
+.w-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.w-note{color:var(--text-2);font-size:14px;line-height:1.5}
+#wRevoke{margin-top:14px}

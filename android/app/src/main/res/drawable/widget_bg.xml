@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Фон виджета — тёмная карточка, как на сайте (--card / --card-edge). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/card" />
+    <stroke android:width="1dp" android:color="@color/card_edge" />
+    <corners android:radius="20dp" />
+</shape>

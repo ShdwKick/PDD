@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Уголёк: огонёк тлеет — серия есть, норма сегодня ещё не выполнена. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFE0241B" android:pathData="M9,17.5a3,3 0 1,0 6,0a3,3 0 1,0 -6,0Z" />
+</vector>

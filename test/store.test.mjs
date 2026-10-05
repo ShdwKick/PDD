@@ -248,5 +248,17 @@ const ago = k => addDays(today, -k);
   eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
 }
 
+{ // ключ виджета: только чтение огонька, хранится хешем, отзывается
+  const s = fresh();
+  withDays(s, "w", { [ago(2)]: 20, [ago(1)]: 20 });
+  const t = s.createWidgetToken("w");
+  const w = s.widget(t);
+  eq("виджет по ключу: серия и норма", [w.current, w.best, w.todayCount, w.target, w.todayDone], [2, 2, 0, 20, false]);
+  eq("чужой/кривой ключ — нет", [s.widget("x".repeat(43)), s.widget("<bad>"), s.widget(undefined)], [null, null, null]);
+  const keys = Array.from({ length: 6 }, () => s.createWidgetToken("w"));
+  eq("старше 5 последних ключей — удалены", [s.widget(t), !!s.widget(keys[5]), !!s.widget(keys[1])], [null, true, true]);
+  eq("отзыв — все ключи мертвы", [s.revokeWidgetTokens("w"), s.widget(keys[5])], [5, null]);
+}
+
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");
 process.exit(fails ? 1 : 0);

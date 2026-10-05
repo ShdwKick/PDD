@@ -329,6 +329,7 @@ function openAccount() {
       <a href="/garazh" data-link data-close>Гараж${chevronIcon}</a>
       <a href="/znachki" data-link data-close>Значки и рекорды${chevronIcon}</a>
       <a href="/plan" data-link data-close>План и напоминания${chevronIcon}</a>
+      ${inAndroidApp() ? `<a href="/vidzhet" data-link data-close>Виджет на экран${chevronIcon}</a>` : ""}
       <a href="${esc(auth.authBase)}/" target="_blank" rel="noopener">Управление аккаунтом и друзьями${chevronIcon}</a>
     </nav>
     <button type="button" class="btn acc-logout" data-logout>Выйти</button>`);
@@ -783,6 +784,7 @@ function route() {
   if (p === "/temy") return renderTopics();
   if (p === "/znachki") return renderBadges();
   if (p === "/garazh") return renderGarage();
+  if (p === "/vidzhet") return renderWidget();
   const mini = /^\/mini\/(\d{1,2})$/.exec(p);
   if (mini && Number(mini[1]) >= 5 && Number(mini[1]) <= 20) return renderMini(Number(mini[1]));
   const t = /^\/tema\/(\d{1,2})$/.exec(p);
@@ -1274,6 +1276,75 @@ function badgeToast({ title, sub, b }) {
 }
 
 /* ---------- страница «Значки и рекорды» ---------- */
+
+/* ---------- виджет на экран телефона ----------
+   Сам виджет — в приложении для Android (android/): TWA-обёртка этого сайта
+   плюс нативный виджет. Сайт выдаёт ему ключ только для чтения огонька
+   (/api/widget/token) и передаёт в приложение intent-ссылкой. Что мы внутри
+   приложения — знаем по ?app=android в адресе запуска (android/…/AndroidManifest.xml)
+   или по referrer android-app:// (так TWA открывает первую страницу). */
+const ANDROID_PACKAGE = "ru.burninghouse.pdd";
+const APP_KEY = "bh-pdd-app";
+(() => {
+  const fromApp = new URLSearchParams(location.search).get("app") === "android" || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE}`);
+  try { if (fromApp) localStorage.setItem(APP_KEY, "android"); } catch {}
+  // Метку запуска из адреса убираем: ссылку из приложения могут переслать.
+  if (new URLSearchParams(location.search).has("app")) {
+    const u = new URL(location.href); u.searchParams.delete("app");
+    history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+  }
+})();
+const inAndroidApp = () => { try { return localStorage.getItem(APP_KEY) === "android"; } catch { return false; } };
+
+async function renderWidget() {
+  document.title = `Виджет на экран — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (!stillOn("/vidzhet")) return;
+  setDrive(currentStreak(cfg));
+  const app = inAndroidApp();
+  const action = !app
+    ? `<p class="w-note">Виджет работает в приложении «${esc(SERVICE_NAME)}» для Android — оно скоро появится в Google Play. В браузере виджет на экран не поставить.</p>`
+    : !me
+      ? `<p class="w-note">Войдите — виджет будет показывать ваш огонёк.</p><button type="button" class="btn primary" data-login>Войти</button>`
+      : `<button type="button" class="btn primary" id="wConnect">Подключить виджет</button>
+         <p class="w-note" id="wStatus" role="status"></p>`;
+  view.innerHTML = `
+    <div class="ex-header">
+      <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
+      <div class="titles"><h1>Виджет на экран</h1><p class="sub">Огонёк и норма дня — прямо на главном экране телефона</p></div>
+    </div>
+    <div class="card w-card">
+      <ol class="w-steps">
+        <li>Подключите виджет кнопкой ниже — он будет видеть только огонёк и норму дня.</li>
+        <li>Долгое нажатие на пустое место главного экрана → «Виджеты» → «${esc(SERVICE_NAME)}».</li>
+        <li>Обновляется сам, примерно раз в 15 минут. Нажатие на виджет открывает приложение.</li>
+      </ol>
+      <div class="w-actions">${action}</div>
+      ${app && me ? `<button type="button" class="btn-mini ghost" id="wRevoke">Отключить все мои виджеты</button>` : ""}
+    </div>`;
+
+  view.querySelector("[data-login]")?.addEventListener("click", login);
+  $("wConnect")?.addEventListener("click", async () => {
+    const btn = $("wConnect");
+    btn.disabled = true;
+    try {
+      const { token } = await apiJson("/api/widget/token", { method: "POST", body: {} });
+      // В приложение — intent-ссылкой: Chrome (в нём живёт TWA) отдаёт её нашему пакету.
+      location.href = `intent://connect?token=${encodeURIComponent(token)}#Intent;scheme=pddwidget;package=${ANDROID_PACKAGE};end`;
+      $("wStatus").textContent = "Готово — теперь добавьте виджет на главный экран.";
+    } catch (e) {
+      console.error("Ключ виджета:", e);
+      $("wStatus").textContent = "Не получилось — проверьте связь и попробуйте ещё раз.";
+    } finally { btn.disabled = false; }
+  });
+  $("wRevoke")?.addEventListener("click", async () => {
+    if (!confirm("Отключить виджеты на всех ваших устройствах? Подключить снова можно здесь же.")) return;
+    try {
+      await apiJson("/api/widget/token", { method: "DELETE" });
+      $("wRevoke").replaceWith(Object.assign(document.createElement("p"), { className: "w-note", textContent: "Виджеты отключены." }));
+    } catch (e) { console.error("Отключение виджетов:", e); }
+  });
+}
 
 async function renderBadges() {
   document.title = `Значки и рекорды — ${SERVICE_NAME}`;

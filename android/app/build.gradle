@@ -1,0 +1,65 @@
+plugins {
+    id "com.android.application"
+}
+
+// Ключ подписи релиза — из keystore.properties рядом с этим проектом (в git
+// не попадает). Нет файла — собирается только debug.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file("keystore.properties")
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+
+// Откуда грузится сайт и куда ходит виджет. Для проверки на локальном
+// сервере из эмулятора: ./gradlew assembleDebug -PsiteUrl=http://10.0.2.2:8798
+def siteUrl = (project.findProperty("siteUrl") ?: "https://pdd.burninghouse.ru").toString().replaceAll("/+\$", "")
+def siteHost = siteUrl.replaceFirst("^https?://", "").replaceFirst("[:/].*", "")
+
+android {
+    namespace "ru.burninghouse.pdd"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ru.burninghouse.pdd"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "SITE_URL", "\"${siteUrl}\""
+        resValue "string", "site_host", siteHost
+        // ?app=android — сайт так узнаёт, что он внутри приложения (страница /vidzhet).
+        resValue "string", "launch_url", "${siteUrl}/?app=android"
+    }
+
+    signingConfigs {
+        if (keystoreProps["storeFile"]) {
+            release {
+                storeFile file(keystoreProps["storeFile"])
+                storePassword keystoreProps["storePassword"]
+                keyAlias keystoreProps["keyAlias"]
+                keyPassword keystoreProps["keyPassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystoreProps["storeFile"]) signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // TWA: сайт во весь экран, без адресной строки (подтверждается assetlinks.json на сайте).
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.5.0"
+    // Виджет обновляется сам в фоне.
+    implementation "androidx.work:work-runtime:2.9.1"
+}

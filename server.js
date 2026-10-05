@@ -160,6 +160,12 @@ if (!ADMIN_INTERNAL_KEY) console.log("ADMIN_INTERNAL_KEY не задан — н�
 // Пока пояснения не свои — не индексируемся вовсе (robots в index.html тоже
 // noindex). Включается одной переменной, когда тексты будут переписаны.
 const INDEXABLE = process.env.INDEXABLE === "1";
+// Приложение для Android (android/): TWA-обёртка сайта + виджет огонька.
+// assetlinks.json подтверждает, что приложение — наше: без него TWA
+// показывает адресную строку. SHA-256 сертификатов подписи — через запятую:
+// ключ Play App Signing и, для APK в обход стора, ключ загрузки.
+const ANDROID_PACKAGE = process.env.ANDROID_PACKAGE || "ru.burninghouse.pdd";
+const ANDROID_CERTS = (process.env.ANDROID_CERT_SHA256 || "").split(",").map(x => x.trim().toUpperCase()).filter(x => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
 
 function routeSeo(rel) {
   if (rel === "") {
@@ -188,6 +194,9 @@ function routeSeo(rel) {
   }
   if (rel === "garazh") {
     return { title: `Гараж — ${SERVICE_NAME}`, description: "Цвета и детали для машины за рубежи огонька: 3, 7, 14, 30, 50 и 100 дней подготовки к экзамену ПДД подряд.", noindex: true };
+  }
+  if (rel === "vidzhet") {
+    return { title: `Виджет на экран телефона — ${SERVICE_NAME}`, description: "Огонёк и норма дня прямо на главном экране телефона — в приложении для Android.", noindex: true };
   }
   if (rel === "znachki") {
     // Личная страница: у каждого свои значки — искать тут нечего.
@@ -316,8 +325,16 @@ async function handleApi(req, res, pathname) {
     return json(res, 200, { questions: ids.filter(id => BY_ID.has(id)).map(id => pub(BY_ID.get(id))) });
   }
 
+  // Виджет на экране телефона — по своему ключу (не по входу: токен входа
+  // живёт минуты, а виджет обновляется сам часами). Только чтение огонька.
+  if (pathname === "/api/widget" && method === "GET") {
+    const m = /^Widget ([A-Za-z0-9_-]+)$/.exec(req.headers.authorization || "");
+    const data = m && store.widget(m[1]);
+    return data ? json(res, 200, data) : json(res, 401, { error: "bad_widget_token" });
+  }
+
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !["/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -363,6 +380,14 @@ async function handleApi(req, res, pathname) {
     const b = await readJson(req);
     const r = store.finishTicket(user.id, Number(f[1]), b.answers, { rid: b.rid, at: Number(b.at) });
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_ticket" });
+  }
+
+  // Ключ для виджета: выдаётся вошедшему и уходит в приложение (страница /vidzhet).
+  if (pathname === "/api/widget/token" && method === "POST") {
+    return json(res, 200, { token: store.createWidgetToken(user.id) });
+  }
+  if (pathname === "/api/widget/token" && method === "DELETE") {
+    return json(res, 200, { revoked: store.revokeWidgetTokens(user.id) });
   }
 
   if (pathname === "/api/me/car" && method === "PUT") {
@@ -497,6 +522,15 @@ const server = http.createServer((req, res) => {
       + paths.map(p => `  <url><loc>${SITE_URL}/${p}</loc></url>`).join("\n") + "\n</urlset>\n";
     res.writeHead(200, { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
     res.end(isHead ? undefined : xml);
+    return;
+  }
+
+  if (rel === ".well-known/assetlinks.json" && ANDROID_CERTS.length) {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=3600" });
+    res.end(isHead ? undefined : JSON.stringify([{
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: { namespace: "android_app", package_name: ANDROID_PACKAGE, sha256_cert_fingerprints: ANDROID_CERTS },
+    }]));
     return;
   }
 
