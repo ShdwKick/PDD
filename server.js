@@ -135,6 +135,23 @@ async function pushTo(userId, message) {
   }
 }
 
+/* Событие пары (приглашение, принятие, «напарник выполнил норму») — в кабинет
+   Auth и на устройство. Сбой не роняет основное действие, только в лог. */
+async function notifyPair(userId, type, title, bearer) {
+  try {
+    await authCall("/api/notifications", { bearer, method: "POST", body: { userId, type, title, url: PUBLIC_URL + "/" } });
+  } catch (e) { console.error("Уведомление пары не ушло:", e.message); }
+  pushTo(userId, { title, body: "«Когда на права?» — общий огонёк.", url: PUBLIC_URL + "/", tag: type });
+}
+
+/* После того как у человека загорелся день: если у него есть напарник и тот
+   ещё не выполнил норму — сообщаем. Не ждём и не падаем. */
+function notifyPartnerDone(user, bearer) {
+  const partnerId = store.pairPartnerToNotify(user.id);
+  if (!partnerId) return;
+  notifyPair(partnerId, "pdd.pair_done", `${user.name || user.username} выполнил(а) норму — общий огонёк ждёт вас`, bearer);
+}
+
 async function sendReminders() {
   for (const r of store.dueReminders()) {
     const title = `Огонёк гаснет: ${r.streak} ${plural(r.streak, "день", "дня", "дней")} подряд`;
@@ -362,7 +379,7 @@ async function handleApi(req, res, pathname) {
   }
 
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -395,6 +412,7 @@ async function handleApi(req, res, pathname) {
   });
   if (pathname === "/api/answers" && method === "POST") {
     const r = answerOf(await readJson(req));
+    if (r?.lit) notifyPartnerDone(user, auth.bearer(req));
     return r ? json(res, 200, r) : json(res, 400, { error: "bad_answer" });
   }
   // Ответы засчитываются, только когда подход закончен (билет, экзамен, мини,
@@ -410,6 +428,7 @@ async function handleApi(req, res, pathname) {
       last = r; saved++;
       if (r.lit) lit = true;
     }
+    if (lit) notifyPartnerDone(user, auth.bearer(req));
     return last ? json(res, 200, { lit, saved, streak: last.streak, summary: last.summary }) : json(res, 400, { error: "bad_batch" });
   }
 
@@ -452,6 +471,57 @@ async function handleApi(req, res, pathname) {
       inviteLink: data.inviteLink || null,
       accountUrl: AUTH_ISSUER + "/",
     });
+  }
+
+  // Напарник — общий огонёк на двоих. Кто друг — решает Auth; имена берём оттуда же.
+  const friendsOf = async () => (await authCall("/api/friends", { bearer: auth.bearer(req) })).friends || [];
+  const pairBody = (v, friends) => {
+    const f = friends.find(x => x.userId === v.partnerId);
+    return { id: v.id, status: v.status, invitedByMe: v.invitedByMe, accepted_day: v.accepted_day,
+      partner: { userId: v.partnerId, name: f.name || f.username, car: v.partner.car, todayDone: v.partner.todayDone },
+      me: v.me, streak: v.streak, rescue: v.rescue };
+  };
+  if (pathname === "/api/pair" && method === "GET") {
+    let friends;
+    try { friends = await friendsOf(); }
+    catch (e) { console.error("Друзья из Auth:", e.message); return json(res, 502, { error: "friends_unavailable" }); }
+    const v = store.pairFor(user.id);
+    if (!v) return json(res, 200, { pair: null });
+    if (!friends.some(f => f.userId === v.partnerId)) { store.pairLeave(user.id, "unfriended"); return json(res, 200, { pair: null }); }
+    return json(res, 200, { pair: pairBody(v, friends) });
+  }
+  if (pathname === "/api/pair" && method === "DELETE") {
+    store.pairLeave(user.id);
+    return json(res, 200, { ok: true });
+  }
+  if (pathname === "/api/pair/invite" && method === "POST") {
+    const toId = String((await readJson(req)).userId || "");
+    let friends;
+    try { friends = await friendsOf(); }
+    catch (e) { console.error("Друзья из Auth:", e.message); return json(res, 502, { error: "friends_unavailable" }); }
+    if (!friends.some(f => f.userId === toId)) return json(res, 404, { error: "not_friend" });
+    const r = store.pairInvite(user.id, toId);
+    if (!r.ok) return json(res, r.error === "self" ? 400 : 409, { error: r.error });
+    await notifyPair(toId, "pdd.pair_invite", `${user.name || user.username} зовёт вас в напарники — общий огонёк`, auth.bearer(req));
+    return json(res, 200, { pair: pairBody(r.pair, friends) });
+  }
+  if (pathname === "/api/pair/accept" && method === "POST") {
+    let friends;
+    try { friends = await friendsOf(); }
+    catch (e) { console.error("Друзья из Auth:", e.message); return json(res, 502, { error: "friends_unavailable" }); }
+    const v = store.pairAccept(user.id);
+    if (!v) return json(res, 404, { error: "no_invite" });
+    if (!friends.some(f => f.userId === v.partnerId)) { store.pairLeave(user.id, "unfriended"); return json(res, 404, { error: "no_invite" }); }
+    await notifyPair(v.partnerId, "pdd.pair_accept", `${user.name || user.username} теперь ваш напарник — общий огонёк зажжён`, auth.bearer(req));
+    return json(res, 200, { pair: pairBody(v, friends) });
+  }
+  if (pathname === "/api/pair/rescue" && method === "POST") {
+    let friends;
+    try { friends = await friendsOf(); }
+    catch (e) { console.error("Друзья из Auth:", e.message); return json(res, 502, { error: "friends_unavailable" }); }
+    const r = store.pairRescue(user.id);
+    if (!r.ok) return json(res, r.error === "no_pair" ? 404 : 409, { error: r.error });
+    return json(res, 200, { pair: friends.some(f => f.userId === r.pair.partnerId) ? pairBody(r.pair, friends) : null });
   }
 
   const nm = /^\/api\/friends\/([\w-]{8,64})\/nudge$/.exec(pathname);

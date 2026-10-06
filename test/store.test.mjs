@@ -318,5 +318,82 @@ const ago = k => addDays(today, -k);
   eq("виджету — правильный вариант, чтобы отметить ответ без сети", s.widget(k).question.correct, full.correct);
 }
 
+// Пара-напарники: пары создаём приглашением и принятием «задним числом» (opts.day).
+const mkPair = (s, a, b, day) => { s.pairInvite(a, b); return s.pairAccept(b, day ? { day } : undefined); };
+const run = (from, to) => Object.fromEntries(Array.from({ length: from - to + 1 }, (_, i) => [ago(from - i), 20]));
+{ // одна пара на человека, себя звать нельзя
+  const s = fresh();
+  eq("позвать себя", s.pairInvite("a", "a"), { ok: false, error: "self" });
+  const r = s.pairInvite("a", "b");
+  eq("приглашение: pending у обоих", [r.ok, r.pair.status, r.pair.invitedByMe, s.pairFor("b").status, s.pairFor("b").invitedByMe], [true, "pending", true, "pending", false]);
+  eq("занят приглашающий / приглашённый", [s.pairInvite("a", "c").error, s.pairInvite("c", "b").error], ["busy", "busy"]);
+  eq("принять может только приглашённый", [s.pairAccept("a"), s.pairAccept("c")], [null, null]);
+  const v = s.pairAccept("b");
+  eq("принятие: active, день — сегодня", [v.status, v.accepted_day, v.streak, v.rescue], ["active", today, { current: 0, todayBoth: false }, null]);
+  eq("после принятия всё ещё busy", s.pairInvite("c", "a").error, "busy");
+}
+{ // оба выполняли — дни считаются, сегодня оба — +1
+  const s = fresh();
+  withDays(s, "a", run(3, 1)); withDays(s, "b", run(3, 1));
+  const v = mkPair(s, "a", "b", ago(3));
+  eq("3 общих дня", [v.streak.current, v.rescue], [3, null]);
+  answerN(s, "a", 20);
+  eq("сегодня выполнил только один", [s.pairFor("a").streak, s.pairFor("a").me.todayDone, s.pairFor("a").partner.todayDone], [{ current: 3, todayBoth: false }, true, false]);
+  eq("напарнику напомнить, а тому, кто сам закрыл, — нет", [s.pairPartnerToNotify("a"), s.pairPartnerToNotify("b")], ["b", null]);
+  answerN(s, "b", 20);
+  eq("сегодня оба", [s.pairFor("b").streak, s.pairPartnerToNotify("a")], [{ current: 4, todayBoth: true }, null]);
+}
+{ // пропуск закрыт личной автозаморозкой — день пары засчитан
+  const s = fresh();
+  withDays(s, "a", { ...run(9, 3), [ago(1)]: 20 });
+  withDays(s, "b", run(3, 1));
+  const v = mkPair(s, "a", "b", ago(3));
+  eq("автозаморозка а на позавчера — пара жива", [v.streak.current, v.rescue, v.me.freezes], [3, null, 0]);
+}
+{ // вчера пропущено, заморозок нет — «под угрозой», спасти нечем
+  const s = fresh();
+  withDays(s, "a", run(3, 2)); withDays(s, "b", run(3, 1));
+  mkPair(s, "a", "b", ago(3));
+  const a = s.pairFor("a"), b = s.pairFor("b");
+  eq("под угрозой: кто пропустил", [a.rescue, b.rescue], [{ day: ago(1), missed: "me", canRescue: false }, { day: ago(1), missed: "partner", canRescue: false }]);
+  eq("серия держится до вчерашнего", a.streak.current, 2);
+  eq("спасти без заморозок нельзя", s.pairRescue("a"), { ok: false, error: "no_freezes" });
+  eq("не под угрозой / нет пары", [s.pairRescue("zz").error], ["no_pair"]);
+}
+{ // напарник спасает своей заморозкой — она тратится, пара жива
+  const s = fresh();
+  withDays(s, "a", run(3, 2)); withDays(s, "b", run(8, 1));
+  mkPair(s, "a", "b", ago(3));
+  eq("у напарника есть заморозка", s.me("b", TZ).streak.freezes, 1);
+  const r = s.pairRescue("b");
+  eq("спасение: пара жива, серия 3", [r.ok, r.pair.rescue, r.pair.streak.current], [true, null, 3]);
+  eq("заморозка потрачена", [s.me("b", TZ).streak.freezes, s.me("a", TZ).streak.freezes], [0, 0]);
+  eq("второй раз не нужно", [s.pairRescue("a").error, s.pairRescue("b").error], ["not_at_risk", "not_at_risk"]);
+  eq("у второго видно спасение", s.pairFor("a").streak.current, 3);
+}
+{ // пропуск раньше вчерашнего рвёт пару
+  const s = fresh();
+  withDays(s, "a", { [ago(3)]: 20, [ago(1)]: 20 }); withDays(s, "b", run(3, 1));
+  mkPair(s, "a", "b", ago(3));
+  eq("пропущено позавчера — пары нет", [s.pairFor("a"), s.pairFor("b")], [null, null]);
+  eq("после разрыва можно звать снова", s.pairInvite("a", "c").ok, true);
+}
+{ // выход и отказ — тихо, работают
+  const s = fresh();
+  mkPair(s, "a", "b");
+  eq("выход из пары", [s.pairLeave("a"), s.pairFor("a"), s.pairFor("b"), s.pairLeave("a")], [true, null, null, false]);
+  s.pairInvite("a", "b");
+  eq("отказ от приглашения", [s.pairLeave("b"), s.pairFor("a")], [true, null]);
+}
+{ // стирание данных уносит пары и траты заморозок
+  const s = fresh();
+  withDays(s, "a", run(3, 2)); withDays(s, "b", run(8, 1));
+  mkPair(s, "a", "b", ago(3));
+  s.pairRescue("b");
+  s.deleteUserData("b");
+  eq("после стирания пары нет у обоих", [s.pairFor("a"), s.pairFor("b")], [null, null]);
+  eq("и можно звать заново", s.pairInvite("a", "c").ok, true);
+}
+
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");
 process.exit(fails ? 1 : 0);

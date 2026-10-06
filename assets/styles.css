@@ -564,6 +564,8 @@ a{color:inherit}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--car-body:#2a62bf;--car-dark:#173f80;--car-light:#4a80d6;--car-glass:#0b1118;--tail:#8e1c16}}
 
 .car{position:fixed;z-index:0;bottom:30px;left:calc(50% + 129px);width:118px;transform:translateX(-50%);pointer-events:none}
+.car.car2{left:calc(50% - 129px)}
+.car.car2 svg{animation:none!important}
 .car svg{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 100%}
 .car .car-shadow{fill:#000;opacity:.35}
 .car .tyre{fill:var(--car-tyre)}
@@ -618,6 +620,7 @@ a{color:inherit}
   /* На телефоне машина в полтора раза крупнее (было 84 px) и ближе к центру
      полосы — чтобы не упиралась в край экрана и номер хоть как-то читался. */
   .car{width:126px;bottom:28px;left:calc(50% + 72px)}
+  .car.car2{left:calc(50% - 72px)}
 }
 @media (prefers-reduced-motion: reduce){
   .car svg,.car.ok svg,.car.bad svg,.car.lit svg{animation:none!important}
@@ -1108,6 +1111,22 @@ a.lamp:hover{filter:brightness(1.1)}
   .wo-close{grid-area:x}
   #woAdd{grid-area:add;justify-self:start}
 }
+
+/* ---- напарник: общий огонёк на главной и кнопка в списке друзей ---- */
+.friend .f-act{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pair-card{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:14px;padding:12px 14px}
+.pair-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pair-card .flame{width:34px;height:34px;flex:none}
+.pair-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 180px}
+.pair-text b{font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.pair-text span{font-size:12.5px;color:var(--text-2);line-height:1.35;overflow-wrap:anywhere}
+.pair-btns{display:flex;flex-wrap:wrap;gap:8px}
+.pair-rescue{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:10px;
+  background:var(--warn-bg);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);font-size:13px;line-height:1.4}
+.pair-rescue p{font-weight:600}
+.pair-msg{font-size:12.5px;color:var(--bad)}
+.pair-msg:empty{display:none}
+.pair-leave{align-self:flex-start}
 
 /* ---- виджет на экран (страница /widget) ---- */
 .w-card{padding:16px}

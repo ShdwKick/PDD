@@ -375,6 +375,7 @@ async function initAuth() {
     }
   }
   applyAuthButton();
+  if (me) loadPair();
   if (justLoggedIn) {
     let back = null;
     try { back = sessionStorage.getItem(RETURN_KEY); sessionStorage.removeItem(RETURN_KEY); } catch {}
@@ -846,6 +847,7 @@ async function renderHub() {
       <div id="ready">${readyBlock(currentFacts(cfg))}</div>
     </section>
     ${widgetOffer()}
+    <div id="pairCard"></div>
     <div class="lamps">
       ${s.mistakes
         ? `<a class="lamp warn" href="/oshibki" data-link>${s.mistakes} ${plural(s.mistakes, "ошибка", "ошибки", "ошибок")} на повторение</a>`
@@ -895,10 +897,14 @@ async function renderHub() {
   startDials(view.querySelector(".dash"), { ignition: firstVisitThisSession() });
   view.querySelector("#friends [data-login]")?.addEventListener("click", login);
   if (me) {
+    // Напарник грузится параллельно: главная уже нарисована, карточка
+    // появится, когда ответит сервер.
+    const pairLoaded = loadPair().then(renderPairCard);
     // Факты в кэше /api/me могли устареть (решали билеты) — освежаем
     // только блоки мотивации, не перерисовывая главную. Друзья — после:
-    // им нужна свежая неделя для сравнения.
-    loadMe().catch(() => {}).then(() => {
+    // им нужна свежая неделя для сравнения и знание, есть ли уже напарник
+    // (от него зависит кнопка «В напарники»).
+    loadMe().catch(() => {}).then(() => pairLoaded).then(() => {
       if (!$("motiv")) return;
       const f = currentFacts(cfg);
       $("ready").innerHTML = readyBlock(f);
@@ -939,6 +945,7 @@ async function loadFriends() {
     <div class="friends-actions">
       ${data.inviteLink ? `<button type="button" class="btn-mini" id="inviteBtn">Пригласить друга</button>` : ""}
       <a class="btn-mini ghost" href="${esc(data.accountUrl)}" target="_blank" rel="noopener">Друзья в аккаунте</a>
+      <span class="pair-msg" id="friendsMsg" role="status"></span>
       ${data.incoming ? `<span class="friends-note">${data.incoming} ${plural(data.incoming, "заявка", "заявки", "заявок")} в друзья ждут ответа в аккаунте</span>` : ""}
     </div>`;
   $("friends").innerHTML = list.length
@@ -953,6 +960,11 @@ async function loadFriends() {
     } catch { /* отменили «поделиться» — ничего не делаем */ }
   });
   for (const b of $("friends").querySelectorAll("[data-nudge]")) b.addEventListener("click", () => nudge(b));
+  for (const b of $("friends").querySelectorAll("[data-pair]")) b.addEventListener("click", async () => {
+    b.disabled = true;
+    if (await pairAction("/api/pair/invite", "POST", { userId: b.dataset.pair })) loadFriends();
+    else b.disabled = false;
+  });
   const byId = new Map(list.map(f => [f.userId, f]));
   for (const b of $("friends").querySelectorAll("[data-car]")) {
     const f = byId.get(b.dataset.car);
@@ -984,6 +996,7 @@ function friendRow(f, i) {
     line = `<span class="f-sub">${today} · билетов сдано ${f.passedTickets}/40${exam}${extra}</span>`;
     if (s.todayDone) action = `<span class="f-sent ok">молодец</span>`;
     else action = nudgeAction(f, "Подтолкнуть", "подтолкнули");
+    if (!pair) action += `<button type="button" class="btn-mini ghost" data-pair="${esc(f.userId)}">В напарники</button>`;
   }
   const days = f.started && f.streak.current ? `${f.streak.current} ${daysWord(f.streak.current)} подряд` : "огонёк не горит";
   // Машина — у тех, кто начал: у остальных гаража ещё нет.
@@ -996,6 +1009,115 @@ function friendRow(f, i) {
     ${car}
     <span class="f-act">${action}</span>
   </li>`;
+}
+
+/* ---------- напарник ----------
+   Один напарник из друзей. Общий огонёк горит, когда норму выполнили оба;
+   заморозки не общие — спасти вчерашний день может каждый своей. Машина
+   напарника стоит на дороге рядом с вашей и на ответы не реагирует. */
+
+let pair = null;
+
+/** Состояние пары с сервера. Гость — без пары; при ошибке остаётся прежнее. */
+async function loadPair() {
+  if (!me) { pair = null; renderPairCar(); return pair; }
+  try { pair = (await apiJson("/api/pair")).pair; }
+  catch (e) { console.error("Напарник:", e); }
+  renderPairCar();
+  return pair;
+}
+
+/** Вторая машина на дороге — вне #view, как и #car, поэтому переживает
+ * смену маршрута. Создаём один раз, дальше только перекрашиваем. */
+function renderPairCar() {
+  let el = $("car2");
+  if (pair?.status !== "active") { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "car car2";
+    el.id = "car2";
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = carSvg("p");
+    $("car").after(el);
+  }
+  applyCar(el, pair.partner.car);
+}
+
+/** Запрос к /api/pair…: ответ с pair обновляет состояние, без него (выход,
+ * отказ) пара пропадает. Ошибка — в строке статуса. true — успех. */
+async function pairAction(path, method, body) {
+  try {
+    const r = await apiJson(path, { method, body });
+    pair = r.pair ?? null;
+  } catch (e) {
+    console.error("Напарник:", e);
+    const err = e.data?.error;
+    renderPairCard();
+    const line = $("pairMsg") || $("friendsMsg");
+    if (line) line.textContent = e.status === 409 && err === "busy" ? "У кого-то из вас уже есть напарник"
+      : err === "no_freezes" ? "Нет заморозок"
+      : err === "not_at_risk" ? "Огонёк уже не нужно спасать"
+      : err === "not_friend" ? "Этот человек не в вашем списке друзей"
+      : "Не получилось — попробуйте ещё раз";
+    return false;
+  }
+  renderPairCar();
+  renderPairCard();
+  return true;
+}
+
+function renderPairCard() {
+  const box = $("pairCard");
+  if (!box) return;
+  if (!pair) { box.innerHTML = ""; return; }
+  const name = esc(pair.partner.name);
+  const msg = `<p class="pair-msg" id="pairMsg" role="status"></p>`;
+  if (pair.status === "pending") {
+    box.innerHTML = pair.invitedByMe
+      ? `<div class="card pair-card">
+          <div class="pair-main"><div class="pair-text"><b>Ждём ответа от ${name}</b></div>
+            <div class="pair-btns"><button type="button" class="btn-mini ghost" data-pair-act="leave">Отменить</button></div></div>${msg}
+        </div>`
+      : `<div class="card pair-card">
+          <div class="pair-main"><div class="pair-text"><b>${name} зовёт вас в напарники</b>
+            <span>Общий огонёк горит, только когда норму выполнили оба</span></div>
+            <div class="pair-btns"><button type="button" class="btn-mini" data-pair-act="accept">Принять</button>
+              <button type="button" class="btn-mini ghost" data-pair-act="leave">Отказаться</button></div></div>${msg}
+        </div>`;
+  } else {
+    const n = pair.streak.current;
+    const flame = pair.streak.todayBoth ? "lit" : n > 0 ? "ember" : "out";
+    const r = pair.rescue;
+    const who = r && (r.missed === "me" ? "вы не успели" : r.missed === "partner" ? `${name} не успел(а)` : "оба не успели");
+    const rescue = !r ? "" : `<div class="pair-rescue">
+        <p>Вчера ${who} — общий огонёк погаснет в полночь</p>
+        ${r.canRescue
+          ? `<button type="button" class="btn-mini" data-pair-act="rescue">Спасти огонёк — заморозка (у вас ${pair.me.freezes})</button>`
+          : `<span>У вас нет заморозок — спасти может ${name}</span>`}
+      </div>`;
+    const nudgeBtn = pair.partner.todayDone ? ""
+      : `<button type="button" class="btn-mini" data-nudge="${esc(pair.partner.userId)}" data-done="подтолкнули">Подтолкнуть</button>`;
+    box.innerHTML = `<div class="card pair-card" data-state="${flame}">
+        <div class="pair-main">
+          ${flameSvg(flame, "", n)}
+          <div class="pair-text"><b>Огонёк с ${name}: ${n} ${daysWord(n)}</b>
+            <span>вы ${pair.me.todayDone ? "✓" : "ещё нет"} · ${name} — ${pair.partner.todayDone ? "✓" : "ещё нет"}</span></div>
+          <div class="pair-btns">${nudgeBtn}</div>
+        </div>
+        ${rescue}${msg}
+        <button type="button" class="btn-mini ghost pair-leave" data-pair-act="leave-active">Выйти из пары</button>
+      </div>`;
+  }
+  for (const b of box.querySelectorAll("[data-nudge]")) b.addEventListener("click", () => nudge(b));
+  for (const b of box.querySelectorAll("[data-pair-act]")) b.addEventListener("click", async () => {
+    const act = b.dataset.pairAct;
+    if (act === "leave-active" && !confirm(`Выйти из пары с ${pair.partner.name}? Общий огонёк пропадёт.`)) return;
+    b.disabled = true;
+    const ok = act === "accept" ? await pairAction("/api/pair/accept", "POST", {})
+      : act === "rescue" ? await pairAction("/api/pair/rescue", "POST", {})
+      : await pairAction("/api/pair", "DELETE");
+    if (ok) loadFriends();   // от пары зависит, есть ли в списке друзей «В напарники»
+  });
 }
 
 /** Машина друга крупно — как у него в гараже, одна картинка. */
