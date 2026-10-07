@@ -15,7 +15,7 @@
      сети и так уходят в очередь (outbox в app.js).
    Навигация без сети — закэшированный index.html, путь разберёт роутер. */
 
-const CACHE = "pdd-v29";
+const CACHE = "pdd-v30";
 const SHELL = [
   "/", "/assets/styles.css", "/assets/brand.css", "/assets/app.js", "/assets/progress.js", "/assets/motivation.js",
   "/assets/auth-client.js", "/assets/favicon.svg", "/manifest.webmanifest",

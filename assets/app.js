@@ -789,6 +789,7 @@ function route() {
   if (p === "/znachki") return renderBadges();
   if (p === "/garazh") return renderGarage();
   if (p === "/widget") return renderWidget();
+  if (p === "/sources") return renderSources();
   const dq = /^\/question\/([\w-]{1,40})$/.exec(p);
   if (dq) {
     const a = new URLSearchParams(location.search).get("a");
@@ -885,9 +886,11 @@ async function renderHub() {
       ${Array.from({ length: cfg.tickets }, (_, i) => ticketPlate(i + 1, s)).join("")}
     </div>
 
-    <p class="dataset-note">Вопросы — официальные билеты ГИБДД, база
+    <p class="dataset-note">Вопросы — экзаменационные билеты Госавтоинспекции
+      (<a href="${SOURCE_EXAM_URL}" rel="noopener" target="_blank">госавтоинспекция.рф</a>), база
       <a href="https://github.com/etspring/pdd_russia" rel="noopener" target="_blank">pdd_russia</a>,
-      версия ${esc(cfg.dataset.version)}.</p>
+      версия ${esc(cfg.dataset.version)}. Неофициальное приложение, не связано с ГИБДД и МВД России —
+      <a href="/sources" data-link>источники</a>.</p>
   `;
   view.querySelector("[data-login]")?.addEventListener("click", login);
   bindWidgetOffer();
@@ -1425,6 +1428,35 @@ function badgeToast({ title, sub, b }) {
 }
 
 /* ---------- страница «Значки и рекорды» ---------- */
+
+/* ---------- источники ----------
+   Google Play требует для приложений с информацией госорганов явную рабочую
+   ссылку на первоисточник и отказ от связи с ними. Ссылка — на раздел
+   «Экзаменационная работа» Госавтоинспекции: он открывается и из-за рубежа
+   (проверяющие Google), в отличие от pravo.gov.ru — его даём реквизитами. */
+const SOURCE_EXAM_URL = "https://xn--80aebkobnwfcnsfk1e0h.xn--p1ai/mens/exam";
+
+async function renderSources() {
+  document.title = `Источники — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (!stillOn("/sources")) return;
+  setDrive(currentStreak(cfg));
+  const ext = (href, text) => `<a href="${href}" rel="noopener" target="_blank">${text}</a>`;
+  docPage("Источники", "Откуда вопросы и правила", `
+    <h2>Неофициальное приложение</h2>
+    <p>«${esc(SERVICE_NAME)}» — независимый тренажёр. Он не является официальным приложением Госавтоинспекции (ГИБДД), МВД России или другого государственного органа и не связан с ними. Официальная информация — только на сайтах госорганов ниже.</p>
+
+    <h2>Экзаменационные билеты</h2>
+    <p>Вопросы и правильные ответы — экзаменационные билеты для категорий A, B и M, по которым сдают теоретический экзамен в Госавтоинспекции. Порядок экзамена, документы и официальная информация — на сайте Госавтоинспекции МВД России:</p>
+    <p>${ext(SOURCE_EXAM_URL, "госавтоинспекция.рф — «Экзаменационная работа»")}</p>
+    <p class="muted">Вопросы собраны в открытой базе ${ext("https://github.com/etspring/pdd_russia", "pdd_russia")}, версия ${esc(cfg.dataset.version)}.</p>
+
+    <h2>Правила дорожного движения</h2>
+    <p>Ответы опираются на Правила дорожного движения Российской Федерации, утверждённые постановлением Совета Министров — Правительства Российской Федерации от 23 октября 1993 г. № 1090. Официальный текст с изменениями — на Официальном интернет-портале правовой информации (pravo.gov.ru).</p>
+
+    <h2>Пояснения</h2>
+    <p>Пояснения к ответам написаны нами, своими словами, чтобы было проще запомнить. Если пояснение расходится с официальным текстом ПДД, верен официальный текст — напишите нам, исправим: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`);
+}
 
 /* ---------- политика конфиденциальности и удаление данных ----------
    Нужны Google Play: ссылка на политику и на «как удалить аккаунт и данные».
