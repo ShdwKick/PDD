@@ -196,7 +196,26 @@ a{color:inherit}
 .sk-line.tall{height:18px}
 .w20{width:20%}.w30{width:30%}.w40{width:40%}.w50{width:50%}.w60{width:60%}.w70{width:70%}.w80{width:80%}.w90{width:90%}
 .sk-title{width:min(340px,70%);height:40px;margin:0 auto;border-radius:10px}
-.sk-row{display:flex;align-items:center;gap:14px;padding:6px 8px 16px}
+/* Приборная панель главной — те же блоки и высоты, что у настоящей
+   (огонёк ~76px, строка рубежа и плана ~120px, циферблаты, готовность). */
+.sk-streak{display:flex;align-items:center;gap:14px;padding:8px 8px 4px}
+.sk-streak .sk-dot{width:52px;height:52px}
+.sk-bar{height:8px;margin-top:10px;border-radius:4px}
+.sk-foot,.sk-ready{padding:8px 8px 0}
+.sk-ready{padding-top:20px}
+.sk-foot,.sk-hub .dash .dials{margin-top:12px}
+.sk-foot .sk-line,.sk-ready .sk-line{margin-left:0;margin-top:4px}
+.sk-ready .sk-line{margin-top:8px}
+.sk-split{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.sk-split .sk-line{margin:0}
+.sk-pillbtn{flex:none;width:132px;height:34px;margin-top:12px;border-radius:10px}
+.sk-split .sk-pillbtn{margin-top:0}
+.sk-pillbtn.short{width:78px}
+.dials .dial .sk-line{margin-top:6px;height:10px}
+/* Подзаголовок главной — три строки текста по 15px × 1.5. */
+.hero .sk-title{height:32px}
+.hero .sk-line{height:14px;margin-top:11px}
+.sk-ready{margin-top:14px}
 .sk-col{flex:1;min-width:0;display:flex;flex-direction:column}
 .sk-col .sk-line{margin-left:0}
 .sk-dot{flex:none;width:44px;height:44px;border-radius:50%}
