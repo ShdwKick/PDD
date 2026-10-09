@@ -778,6 +778,8 @@ document.addEventListener("click", e => {
 
 function route() {
   teardown();
+  // Первый экран заменит скелет из index.html — для читалок загрузка закончена.
+  view.removeAttribute("aria-busy");
   const p = location.pathname.replace(/\/+$/, "");
   const m = /^\/bilet\/(\d{1,2})$/.exec(p);
   if (m) return renderTicket(Number(m[1]));
@@ -879,7 +881,7 @@ async function renderHub() {
     <div id="motiv">${motivBlock(currentFacts(cfg))}</div>
 
     <h2 class="section-title">Друзья</h2>
-    <div class="friends" id="friends">${me ? `<p class="loading">Загрузка…</p>` : friendsGuest()}</div>
+    <div class="friends" id="friends">${me ? SK_FRIENDS : friendsGuest()}</div>
 
     <h2 class="section-title">Билеты</h2>
     <div class="plates">
@@ -1825,6 +1827,11 @@ async function renderGarage() {
 const backIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>`;
 const restartIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
 
+/* Скелеты на время загрузки внутри приложения — те же блоки, что в index.html. */
+const SK_QUESTION = `<span class="sr-only">Загрузка…</span><i class="sk sk-img" aria-hidden="true"></i><i class="sk sk-line w30" aria-hidden="true"></i><i class="sk sk-line w90 tall" aria-hidden="true"></i><i class="sk sk-line w70 tall" aria-hidden="true"></i>${`<i class="sk sk-answer" aria-hidden="true"></i>`.repeat(3)}`;
+const SK_FRIENDS = `<span class="sr-only">Загрузка…</span>${`<i class="sk sk-friend" aria-hidden="true"></i>`.repeat(2)}`;
+const SK_TOPICS = `<span class="sr-only">Загрузка…</span>${`<i class="sk sk-topic" aria-hidden="true"></i>`.repeat(5)}`;
+
 function quizShell({ title, backHref = "/", backLabel = "На главную", restart = true, extraHeader = "" }, cfg) {
   view.innerHTML = `
     <div class="ex-header">
@@ -1835,7 +1842,7 @@ function quizShell({ title, backHref = "/", backLabel = "На главную", r
       ${restart ? `<button class="icon-btn" id="tRestart" type="button" title="Начать заново" aria-label="Начать заново">${restartIcon}</button>` : ""}
     </div>
     <nav class="strip" id="tStrip" aria-label="Вопросы"></nav>
-    <section class="card qcard" id="tStage" aria-live="polite"><p class="loading">Загрузка…</p></section>
+    <section class="card qcard" id="tStage" aria-live="polite">${SK_QUESTION}</section>
   `;
 }
 
@@ -2436,7 +2443,7 @@ async function renderTopics() {
       <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
       <div class="titles"><h1>Темы</h1><p class="sub">Вопросы всех билетов, собранные по разделам правил</p></div>
     </div>
-    <div class="topics" id="topics"><p class="loading">Загрузка…</p></div>`;
+    <div class="topics" id="topics">${SK_TOPICS}</div>`;
   let topics, st;
   try { [topics, st] = await Promise.all([loadTopics(), qState()]); } catch (e) { console.error(e); return; }
   if (!stillOn("/temy")) return;

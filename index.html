@@ -134,7 +134,38 @@
   </div>
 </div>
 
-<main id="view"></main>
+<!-- Скелет — виден сразу, пока грузятся скрипты и проверяется вход; первый же
+     route() в app.js заменяет содержимое #view. Повторяет раскладку настоящих
+     экранов (те же .dash/.dials/.plates/.strip), чтобы при замене ничего не
+     прыгало. Вариант — по адресу, строкой скрипта ниже. -->
+<main id="view" aria-busy="true">
+  <p class="sr-only">Загрузка…</p>
+  <div class="sk-hub" aria-hidden="true">
+    <section class="hero"><i class="sk sk-title"></i><i class="sk sk-line w60"></i><i class="sk sk-line w40"></i></section>
+    <section class="dash">
+      <div class="sk-row"><i class="sk sk-dot"></i><span class="sk-col"><i class="sk sk-line w50"></i><i class="sk sk-line w80"></i></span></div>
+      <div class="dials"><i class="sk sk-dial dial"></i><i class="sk sk-dial dial big"></i><i class="sk sk-dial dial"></i></div>
+    </section>
+    <div class="actions hub-actions"><i class="sk sk-btn"></i><i class="sk sk-btn"></i></div>
+    <div class="plates sk-plates"><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i><i class="sk sk-plate"></i></div>
+  </div>
+  <div class="sk-quiz" aria-hidden="true">
+    <div class="ex-header"><i class="sk sk-dot"></i><span class="sk-col"><i class="sk sk-line w40 tall"></i><i class="sk sk-line w20"></i></span></div>
+    <div class="strip"><span class="strip-block"><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i></span><span class="strip-block"><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i></span><span class="strip-block"><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i></span><span class="strip-block"><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i><i class="sk sk-pill"></i></span></div>
+    <section class="card sk-qcard"><i class="sk sk-img"></i><i class="sk sk-line w30"></i><i class="sk sk-line w90 tall"></i><i class="sk sk-line w70 tall"></i><i class="sk sk-answer"></i><i class="sk sk-answer"></i><i class="sk sk-answer"></i></section>
+  </div>
+  <div class="sk-doc" aria-hidden="true">
+    <div class="ex-header"><i class="sk sk-dot"></i><span class="sk-col"><i class="sk sk-line w40 tall"></i><i class="sk sk-line w30"></i></span></div>
+    <section class="card sk-qcard"><i class="sk sk-line w40 tall"></i><i class="sk sk-line w90"></i><i class="sk sk-line w80"></i><i class="sk sk-line w60"></i><i class="sk sk-line w40 tall"></i><i class="sk sk-line w90"></i><i class="sk sk-line w70"></i></section>
+  </div>
+</main>
+<script>
+  // Какой скелет показать — до загрузки app.js, чтобы не мигал чужой экран.
+  (function (p) {
+    document.getElementById("view").dataset.sk = p === "/" || p === "/index.html" ? "hub"
+      : /^\/(bilet|ekzamen|mini|question|oshibki|tema)(\/|$)/.test(p) ? "quiz" : "doc";
+  })(location.pathname.replace(/\/+$/, "") || "/");
+</script>
 
 <p class="foot">Когда на права? · BurningHouse · Неофициальное приложение · <a href="/sources" data-link>Источники</a> · <a href="/privacy" data-link>Конфиденциальность</a> · <a href="/delete-account" data-link>Удаление данных</a></p>
 
