@@ -1072,7 +1072,9 @@ async function pairAction(path, method, body) {
   return true;
 }
 
-const exitIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>`;
+// «Выйти»: дверь слева, стрелка из неё — вправо.
+const exitIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M14 17l5-5-5-5M19 12H8"/></svg>`;
+const bellIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>`;
 
 /** Общий огонёк, разделённый пополам: левая половина — вы, правая — напарник.
  * Выполнил норму — его половина горит (цвета — по рубежу общей серии, как у
@@ -1123,8 +1125,9 @@ function renderPairCard() {
           ? `<button type="button" class="btn-mini" data-pair-act="rescue">Спасти огонёк — заморозка (у вас ${pair.me.freezes})</button>`
           : `<span>У вас нет заморозок — спасти может ${name}</span>`}
       </div>`;
+    // Не отдельной кнопкой на всю строку, а тихой ссылкой под счётчиком — рядом с огоньком напарника.
     const nudgeBtn = pair.partner.todayDone ? ""
-      : `<button type="button" class="btn-mini" data-nudge="${esc(pair.partner.userId)}" data-done="подтолкнули">Подтолкнуть</button>`;
+      : `<button type="button" class="pair-nudge" data-nudge="${esc(pair.partner.userId)}" data-done="подтолкнули">${bellIcon}Подтолкнуть</button>`;
     const meDone = pair.me.todayDone, partnerDone = pair.partner.todayDone;
     const state = meDone && partnerDone ? "сегодня горит целиком"
       : meDone ? `ваша половина горит, ждём ${name}` : partnerDone ? `${name} — горит, ваша половина ждёт вас` : "сегодня пока не горит";
@@ -1136,8 +1139,7 @@ function renderPairCard() {
             <figcaption><span class="${meDone ? "on" : ""}">вы</span><span class="${partnerDone ? "on" : ""}">${name}</span></figcaption>
           </figure>
           <div class="pair-text"><b>Огонёк с ${name}</b>
-            <span class="pair-days">${n} ${daysWord(n)}</span></div>
-          <div class="pair-btns">${nudgeBtn}</div>
+            <span class="pair-days">${n} ${daysWord(n)}</span>${nudgeBtn}</div>
         </div>
         ${rescue}${msg}
       </div>`;
@@ -1328,12 +1330,31 @@ const roadPos = rd => rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) /
 /** Своя машина для дороги как готовый HTML: копия с префиксом градиентов,
  * покрашенная по гаражу (applyCar работает с элементом, поэтому через
  * временный). */
-function roadCar(prefix, f, cls, style) {
+/** Машина сбоку — для мини-дороги готовности, едет вправо. Те же классы, что у
+ * машины сзади (tyre, glass, light, tail, части p-*), поэтому цвет кузова,
+ * полосы, спойлер и подсветка из гаража ложатся сами (applyCar). */
+function sideCarSvg() {
+  return `<svg viewBox="0 0 120 50" aria-hidden="true">
+    <ellipse class="part p-glow" cx="60" cy="46" rx="54" ry="4" style="fill:var(--glow,#3aa0ff);opacity:.55"/>
+    <ellipse class="car-shadow" cx="60" cy="46" rx="50" ry="2.6"/>
+    <path class="part p-spoiler" d="M3 15 L17 15 L17 18 L14 21 L9 21 L7 18 Z" style="fill:var(--car-dark)"/>
+    <path style="fill:var(--car-body)" d="M6 33 Q6 24 15 23 L38 21 L50 11 Q53 8 58 8 L80 8 Q86 8 90 12 L99 21 L109 22.5 Q116 23.5 116 31 L116 36 Q116 39 113 39 L9 39 Q6 39 6 36 Z"/>
+    <path class="glass" d="M53 12.5 Q55 11 58 11 L69 11 L69 21 L42 21 Z"/>
+    <path class="glass" d="M72 11 L80 11 Q84.5 11 87.5 14 L94 21 L72 21 Z"/>
+    <g class="part p-stripes"><rect x="10" y="28" width="104" height="3" rx="1"/></g>
+    <path class="light" d="M110 25 L116 25.5 L116 29.5 L110 29 Z"/>
+    <path class="tail" d="M6 25 L11 24.5 L11 29.5 L6 30 Z"/>
+    <g><circle class="tyre" cx="29" cy="39" r="8"/><circle cx="29" cy="39" r="3.4" style="fill:#9aa4b1"/></g>
+    <g><circle class="tyre" cx="94" cy="39" r="8"/><circle cx="94" cy="39" r="3.4" style="fill:#9aa4b1"/></g>
+  </svg>`;
+}
+
+function roadCar(prefix, f, cls, style, svg = carSvg(prefix)) {
   const el = document.createElement("span");
   el.className = `car ${cls}`;
   el.setAttribute("aria-hidden", "true");
   el.setAttribute("style", style);
-  el.innerHTML = carSvg(prefix);
+  el.innerHTML = svg;
   applyCar(el, M.carConfig(savedCar(), f.streak.best));
   return el.outerHTML;
 }
@@ -1348,7 +1369,7 @@ function miniRoad(f) {
     ? `Следующий: <b>${esc(rd.next.title)}</b> — ${esc(rd.next.detail)}`
     : "Все отметки пройдены";
   return `<a class="rmini" href="/road" data-link aria-label="Дорога к правам: пройдено ${rd.reached} из ${n}">
-    <span class="rm-strip">${dots}${roadCar("r", f, "rm-car", `--x:${roadPos(rd).toFixed(4)}`)}</span>
+    <span class="rm-strip">${dots}${roadCar("r", f, "rm-car", `--x:${roadPos(rd).toFixed(4)}`, sideCarSvg())}</span>
     <span class="rm-next">${line}</span>
   </a>`;
 }
