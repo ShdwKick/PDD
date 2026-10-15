@@ -1334,35 +1334,33 @@ const roadPos = rd => rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) /
  * машины сзади (tyre, glass, light, tail, части p-*), поэтому цвет кузова,
  * полосы, спойлер и подсветка из гаража ложатся сами (applyCar). */
 function sideCarSvg() {
-  // Седан в профиль: багажник слева, капот справа. Градиент кузова — один на
-  // страницу: мини-дорога у главной одна.
-  return `<svg viewBox="0 0 160 66" aria-hidden="true">
-    <defs><linearGradient id="sideBody" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" style="stop-color:var(--car-light)"/><stop offset=".35" style="stop-color:var(--car-body)"/><stop offset="1" style="stop-color:var(--car-dark)"/>
-    </linearGradient></defs>
-    <ellipse class="part p-glow" cx="82" cy="59" rx="74" ry="5" style="fill:var(--glow,#3aa0ff);opacity:.55"/>
-    <ellipse class="car-shadow" cx="82" cy="59" rx="68" ry="3"/>
-    <path class="part p-spoiler" d="M10 23 L30 23 L30 26 L26 26 L24 31 L20 31 L18 26 L10 26 Z" style="fill:var(--car-dark)"/>
-    <path style="fill:url(#sideBody)" d="M8 50 L8 38 Q8 32 15 31 L36 29.5 L52 15.5 Q55.5 13 61 13 L99 13 Q105 13 109.5 16.5 L127 29 L146 31.5 Q154 32.5 154 40 L154 49 Q154 53 150 53 L12 53 Q8 53 8 50 Z"/>
-    <path class="glass" d="M41 29.5 L54.5 17.5 Q56.5 16 60 16 L78 16 L78 29.5 Z"/>
-    <path class="glass" d="M82 16 L99 16 Q103.5 16 107 19 L120 29.5 L82 29.5 Z"/>
-    <path d="M60 16.5 L68 16.5 L56 29 L48 29 Z" style="fill:#fff;opacity:.08"/>
-    <g class="part p-stripes"><rect x="12" y="40" width="140" height="3.5" rx="1.5"/></g>
-    <path d="M10 36.5 L152 36.5" style="stroke:var(--car-light);stroke-width:1;opacity:.45"/>
-    <path d="M80 30 L80 51" style="stroke:var(--car-dark);stroke-width:1.2;opacity:.8"/>
-    <path d="M41 30 Q40 41 44 51" style="stroke:var(--car-dark);stroke-width:1;opacity:.5;fill:none"/>
-    <path d="M120 30 Q121 41 117 51" style="stroke:var(--car-dark);stroke-width:1;opacity:.5;fill:none"/>
-    <rect x="64" y="33" width="7" height="2" rx="1" style="fill:var(--car-dark)"/>
-    <rect x="100" y="33" width="7" height="2" rx="1" style="fill:var(--car-dark)"/>
-    <path d="M118 25 L125 24 Q127 24 127 26 L126 28.5 L119 28.5 Z" style="fill:var(--car-dark)"/>
-    <path d="M146 33 L154 34.5 L154 39 L147 38.5 Z" style="fill:#ffe9a8"/>
-    <path d="M8 33.5 L15 32.5 L15 38 L8 38.5 Z" class="tail"/>
-    <rect x="146" y="47" width="8" height="3" rx="1" style="fill:#171b22"/>
-    <rect x="8" y="47" width="9" height="3" rx="1" style="fill:#171b22"/>
-    <circle cx="40" cy="53" r="13" style="fill:#0b0e13"/>
-    <circle cx="124" cy="53" r="13" style="fill:#0b0e13"/>
-    <circle class="tyre" cx="40" cy="53" r="11"/><circle cx="40" cy="53" r="5.5" style="fill:#aeb6c1"/><circle cx="40" cy="53" r="1.8" style="fill:#5d6672"/>
-    <circle class="tyre" cx="124" cy="53" r="11"/><circle cx="124" cy="53" r="5.5" style="fill:#aeb6c1"/><circle cx="124" cy="53" r="1.8" style="fill:#5d6672"/>
+  // Та же машина, что на дороге и в гараже, только сбоку: те же цвета и
+  // детали (полоса света на крыше и под стёклами, большие стопы, тёмные колёса,
+  // спойлер в тёмном оттенке кузова, полосы, огонь из выхлопа, мягкая подсветка).
+  // Едет вправо: багажник слева. Градиент подсветки — один на страницу.
+  return `<svg viewBox="-4 4 156 58" aria-hidden="true">
+    <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient></defs>
+    <ellipse class="part p-glow" cx="78" cy="54" rx="74" ry="7" fill="url(#sideGlow)"/>
+    <ellipse class="car-shadow" cx="78" cy="54.6" rx="66" ry="2.6"/>
+    <g class="part p-fire"><path class="exhaust" d="M11 42 Q4 40 -3 42.7 Q4 45.5 11 43.7 Z"/></g>
+    <path class="body" style="fill:var(--car-body)" d="M10 46 L10 33 Q10 29 15 28.5 L38 27 L54 13.5 Q57 11.5 62 11.5 L94 11.5 Q99 11.5 103 14 L118 26.5 L139 29 Q146 30 146 36 L146 46 Z"/>
+    <path class="light" d="M55 13.2 Q57.5 11.5 62 11.5 L94 11.5 Q99 11.5 102.5 13.8 L101 15 L56.5 15 Z"/>
+    <path class="glass" d="M43 26.5 L56 15.2 Q58 15 61 15 L76 15 L76 26.5 Z"/>
+    <path class="glass" d="M79 15 L94 15 Q98.5 15 101.5 17 L113 26.5 L79 26.5 Z"/>
+    <path class="glint" d="M60 15 L67 15 L56 26.5 L49 26.5 Z"/>
+    <path class="light" d="M36 26.8 L119 26.8 L122 29 L34 29 Z"/>
+    <path class="mirror" d="M108 23.5 L114.5 22.5 Q116.5 22.3 116.4 24.3 L115.6 26.6 L109.5 26.6 Z"/>
+    <path class="crease" d="M14 36 L144 36"/>
+    <path class="tail" d="M10 30.6 L20 29.9 L19 35.6 L10 36.2 Z"/>
+    <path d="M139 30.6 L146 31.8 L146 34.6 L140 34.1 Z" style="fill:#e8eef6"/>
+    <path class="bumper" d="M10 39 L17 39 L17 46 L13 46 Q10 46 10 43 Z"/>
+    <path class="bumper" d="M139 39 L146 39 L146 43 Q146 46 143 46 L139 46 Z"/>
+    <rect class="bumper" x="44" y="43.8" width="68" height="2.4" rx="1"/>
+    <g class="part p-stripes"><path d="M14 28.7 L38 27.2 L54 13.7 Q57 11.7 62 11.7 L94 11.7 Q99 11.7 103 14.2 L118 26.7 L142 29.4" style="fill:none;stroke:var(--stripe,#f4f6f8);stroke-width:2.6;opacity:.92"/></g>
+    <g class="part p-spoiler"><rect class="sp-leg" x="15" y="23.5" width="3" height="5"/><rect class="sp-leg" x="24" y="23.5" width="3" height="4"/><path class="sp-wing" d="M8 20.5 L31 20.5 L30 23.8 L9.5 23.8 Z"/></g>
+    <circle cx="34" cy="46" r="11.5" style="fill:#0b0e13"/><circle cx="122" cy="46" r="11.5" style="fill:#0b0e13"/>
+    <circle class="tyre" cx="34" cy="46" r="9.5"/><circle cx="34" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="34" cy="46" r="1.6" style="fill:#4a525d"/>
+    <circle class="tyre" cx="122" cy="46" r="9.5"/><circle cx="122" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="122" cy="46" r="1.6" style="fill:#4a525d"/>
   </svg>`;
 }
 
