@@ -241,6 +241,26 @@ const ago = k => addDays(today, -k);
   eq("лента: неделя (с понедельника) и значки друга", [feed.week, feed.badges >= 3], [w.n, true]);
 }
 
+{ // дорога к правам: отметки от текущих фактов
+  const M = require("../assets/motivation.js");
+  const mk = over => ({
+    total: 200, learned: 0, mistakes: 0, seen: 0, answers: 0, correct: 0,
+    tickets: { done: 0, passedEver: 0, perfect: 0 },
+    exams: { count: 0, passed: 0, perfect: 0, fastest: null, passStreak: 0, recent: [] },
+    streak: { current: 0, best: 0, frozen: 0 }, days: {}, today: "2026-10-01", bestCombo: 0, maxDay: 0, night: false, early: false,
+    ...over,
+  });
+  const r0 = M.route(mk());
+  eq("дорога: ноль прогресса — 0 пройдено, дальше «Старт», 0%", [r0.points.length, r0.reached, r0.next.id, r0.pct], [8, 0, "start", 0]);
+  const r1 = M.route(mk({ answers: 40, learned: 60, tickets: { done: 1, passedEver: 0, perfect: 0 } }));
+  eq("дорога: 30% выучено и билет — старт, билет, четверть; дальше экзамен", [r1.reached, r1.next.id, r1.points[2].done], [3, "exam", true]);
+  eq("дорога: подсказка до экзамена не пустая, у пройденной пустая", [r1.next.detail !== "", r1.points[0].detail], [true, ""]);
+  eq("дорога: детали четверти — «N из M вопросов»", M.route(mk({ answers: 1, learned: 20 })).points[2].detail, "20 из 50 вопросов");
+  const r2 = M.route(mk({ answers: 500, learned: 200, tickets: { done: 30, passedEver: 30, perfect: 5 },
+    exams: { count: 3, passed: 3, perfect: 0, fastest: 500, passStreak: 3, recent: [{ passed: true }, { passed: true }, { passed: true }] } }));
+  eq("дорога: всё пройдено — 8 из 8, следующего нет, 100%", [r2.reached, r2.next, r2.pct], [8, null, 100]);
+}
+
 { // гараж: выбор машины только из открытого по лучшей серии
   const M = require("../assets/motivation.js");
   const s = fresh();

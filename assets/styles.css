@@ -934,12 +934,6 @@ a.lamp:hover{filter:brightness(1.1)}
 .ready-pct{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:28px;line-height:1;color:var(--ink)}
 .ready-pct small{font-size:.55em;margin-left:1px}
 .ready[data-ready="true"] .ready-pct{color:var(--ok)}
-.ready-bar{position:relative;display:flex;gap:3px;margin-top:8px}
-.ready-bar i{flex:1 1 0;min-width:0;height:10px;border-radius:1.5px;background:var(--el-edge);transform:skewX(-14deg)}
-.ready-bar i.on{background:var(--ink)}
-.ready[data-ready="true"] .ready-bar i.on{background:var(--ok)}
-/* Отметка цели на 90% — жёлтая, как лампа «внимание». */
-.ready-goal{position:absolute;left:90%;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--warn);border-radius:1px}
 .ready-level{margin-top:8px;font-size:12.5px;line-height:1.4;color:var(--text-2)}
 .ready-level b{color:var(--ink);font-weight:600}
 .ready-steps{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
@@ -1172,7 +1166,7 @@ a.lamp:hover{filter:brightness(1.1)}
 .pair-card{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:14px;padding:12px 14px}
 .pair-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .pair-card .flame{width:34px;height:34px;flex:none}
-.pair-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 180px}
+.pair-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 120px}
 .pair-text b{font-weight:700;font-size:15px;overflow-wrap:anywhere}
 .pair-text span{font-size:12.5px;color:var(--text-2);line-height:1.35;overflow-wrap:anywhere}
 .pair-btns{display:flex;flex-wrap:wrap;gap:8px}
@@ -1183,9 +1177,80 @@ a.lamp:hover{filter:brightness(1.1)}
 .pair-msg:empty{display:none}
 .pair-leave{align-self:flex-start}
 
+/* Активная пара: огонёк пополам (вы | напарник), выход — значком в углу. */
+.pair-card{position:relative}
+.pair-exit{position:absolute;top:6px;right:6px;width:36px;height:36px;color:var(--text-2)}
+.pair-exit .icon{width:18px;height:18px}
+.pair-card .pair-main{padding-right:34px}
+/* Ширина под подписи «вы» и имя под половинками. */
+.pair-flame{display:flex;flex-direction:column;align-items:center;gap:4px;margin:0;flex:none;width:92px}
+.split-flame{width:56px;height:56px;overflow:visible}
+.split-flame .half{fill:none;stroke:var(--el-edge);stroke-width:1.2;stroke-dasharray:2 1.6;transition:fill .3s}
+.split-flame .half.on{stroke:none}
+.split-flame .core{transform-box:fill-box;transform-origin:50% 100%;transform:scale(.52)}
+.split-flame.both{filter:drop-shadow(0 0 8px rgba(255,106,26,.55));animation:pair-join .5s var(--ease)}
+@keyframes pair-join{0%{transform:scaleX(.82)}60%{transform:scaleX(1.06)}100%{transform:none}}
+.pair-flame figcaption{display:flex;gap:6px;width:100%;font-size:10.5px;line-height:1.2;color:var(--text-2)}
+.pair-flame figcaption span{flex:1 1 0;min-width:0;max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.pair-flame figcaption span.on{color:var(--text);font-weight:600}
+.pair-days{font-family:var(--font-dash);font-style:italic;font-weight:800;font-size:20px!important;color:var(--text)!important}
+@media (prefers-reduced-motion: reduce){ .split-flame.both{animation:none} }
+
 /* ---- виджет на экран (страница /widget) ---- */
 .w-card{padding:16px}
 .w-steps{margin:0 0 14px 18px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
 .w-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .w-note{color:var(--text-2);font-size:14px;line-height:1.5}
 #wRevoke{margin-top:14px}
+
+/* ---- дорога к правам: мини-дорога на главной и страница /road ---- */
+/* Тёмная полоса асфальта с пунктиром по центру; --x (0..1) — положение вдоль
+   полосы с отступом по краям, чтобы отметки и машина не вылезали наружу. */
+.rmini{display:block;margin-top:8px;color:inherit;text-decoration:none}
+.rm-strip{position:relative;display:block;height:40px;border-radius:10px;background:#141b26;border:1px solid var(--dash-edge);overflow:hidden}
+.rm-strip::before{content:"";position:absolute;left:12px;right:12px;top:50%;border-top:2px dashed #3a4659;transform:translateY(-1px)}
+.rm-dot{position:absolute;top:50%;left:calc(24px + (100% - 48px) * var(--x));width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#2a3547;border:2px solid #3a4659;box-sizing:border-box}
+.rm-dot.done{background:var(--ok);border-color:var(--ok);box-shadow:0 0 6px color-mix(in srgb,var(--ok) 70%,transparent)}
+.rm-dot.next{background:#141b26;border-color:var(--warn)}
+/* Машина «смотрит» вправо: тот же вид сзади, повёрнутый на 90 градусов. */
+/* Машина — как на дороге, вид сзади: «едет» по полоске вперёд, не боком. */
+.car.rm-car{position:absolute;z-index:1;bottom:auto;top:50%;left:calc(24px + (100% - 48px) * var(--x));width:38px;transform:translate(-50%,-52%);pointer-events:none}
+.car.rm-car svg{animation:none}
+.car.rm-car .p-glow,.car.rm-car .exhaust{animation:none}
+.rm-next{display:block;margin-top:7px;font-size:12.5px;line-height:1.35;color:var(--text-2)}
+.rm-next b{color:var(--ink);font-weight:600}
+.rmini:hover .rm-strip{border-color:var(--text-2)}
+.rmini:focus-visible{outline:2px solid var(--text);outline-offset:2px;border-radius:10px}
+
+.road-page{position:relative;max-width:520px;margin:6px auto 0;overflow:hidden}
+.rd-svg{position:absolute;inset:0;width:100%;height:100%}
+.rd-svg path{fill:none;stroke-linecap:butt;vector-effect:non-scaling-stroke}
+.rd-edge{stroke:var(--card-edge);stroke-width:40}
+.rd-asph{stroke:#141b26;stroke-width:34}
+.rd-dash{stroke:#8fa3bd;stroke-width:2;stroke-dasharray:10 10}
+.rd-pin{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;box-sizing:border-box;background:#2a3547;border:3px solid #3a4659}
+.rd-pin.done{background:var(--ok);border-color:#fff}
+.rd-pin.next{background:#141b26;border-color:var(--warn);box-shadow:0 0 0 4px color-mix(in srgb,var(--warn) 30%,transparent)}
+/* Плашка — синий дорожный указатель с белой каймой. */
+.rd-sign{position:absolute;transform:translateY(-50%);width:max-content;max-width:calc(70% - 30px);box-sizing:border-box;padding:8px 12px;border-radius:10px;
+  background:#1a56a8;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-size:13.5px;line-height:1.3}
+.rd-sign b{display:flex;align-items:center;gap:6px;font-family:var(--font-dash);font-weight:700}
+.rd-sign.at-right b{justify-content:flex-end;text-align:right}
+.rd-sign.at-right .rd-detail{text-align:right}
+.rd-check{flex:none;width:18px;height:18px;padding:2px;border-radius:50%;box-sizing:border-box;background:var(--ok);fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.rd-sign.later{opacity:.5}
+.rd-sign.next{border-color:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 35%,transparent),0 2px 8px rgba(0,0,0,.35)}
+.rd-detail{display:block;margin-top:3px;font-size:12px;opacity:.9}
+.rd-sign .bs-bar{margin-top:6px;max-width:none;background:rgba(255,255,255,.3)}
+.rd-sign .bs-bar::before{background:#fff}
+.rd-finish{position:absolute;top:2px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink);font-family:var(--font-dash);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.car.rd-car{position:absolute;z-index:2;bottom:auto;width:56px;transform:translate(-50%,-50%);animation:rdDrive 1.2s var(--ease) both;pointer-events:none}
+.car.rd-car svg{animation:none}
+.car.rd-car .p-glow,.car.rd-car .exhaust{animation:none}
+@keyframes rdDrive{from{left:var(--x0);top:var(--y0)}}
+.rd-steps{margin-bottom:24px}
+@media (prefers-reduced-motion: reduce){ .car.rd-car{animation:none} }
+
+/* На «Дороге к правам» машина уже нарисована на дороге — фоновые машины
+   внизу экрана только перекрывали бы таблички. */
+body:has(.road-page) #car,body:has(.road-page) #car2{display:none}

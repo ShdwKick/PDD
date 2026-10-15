@@ -65,6 +65,42 @@
     return { pct, level, ready, know: Math.round(know * 100), passes, examsN: recent.length, steps: steps.slice(0, 2) };
   }
 
+  /* ---------- дорога к правам ----------
+     Отметки считаются от ТЕКУЩИХ фактов и нигде не хранятся — как и
+     готовность: если прогресс откатится (вопрос снова в «ошибках», экзамен
+     провален), отметка может «погаснуть». Для вех-значков есть badges(). */
+  const ROUTE = [
+    { id: "start", title: "Старт", p: f => f.answers, left: () => "ответить на первый вопрос" },
+    { id: "ticket", title: "Первый билет", p: f => f.tickets.done, left: () => "решить билет целиком" },
+    { id: "q25", title: "Четверть пути", p: f => f.learned / (0.25 * f.total), left: f => learnedLeft(f, 0.25) },
+    { id: "exam", title: "Первый экзамен", p: f => f.exams.passed, left: () => "сдать экзамен" },
+    { id: "q50", title: "Полпути", p: f => f.learned / (0.5 * f.total), left: f => learnedLeft(f, 0.5) },
+    { id: "t20", title: "Половина билетов", p: f => f.tickets.passedEver / 20, left: f => `${Math.min(f.tickets.passedEver, 20)} из 20 билетов` },
+    { id: "q75", title: "Финишная прямая", p: f => f.learned / (0.75 * f.total), left: f => learnedLeft(f, 0.75) },
+    { id: "ready", title: "Готов к ГАИ", p: f => readiness(f).ready ? 1 : 0, left: f => readiness(f).steps[0]?.text || "сдать три экзамена подряд" },
+  ];
+  function learnedLeft(f, share) {
+    const need = Math.ceil(share * f.total);
+    return `${Math.min(f.learned, need)} из ${need} ${plural(need, "вопроса", "вопросов", "вопросов")}`;
+  }
+
+  /** points — все отметки по порядку; reached — сколько подряд пройдено с
+   * начала; next — первая не пройденная (или null); pct — средний прогресс. */
+  function route(f) {
+    const points = ROUTE.map(r => {
+      const progress = clamp01(r.p(f));
+      const done = progress >= 1;
+      return { id: r.id, title: r.title, done, progress, detail: done ? "" : r.left(f) };
+    });
+    const idx = points.findIndex(p => !p.done);
+    return {
+      points,
+      reached: idx < 0 ? points.length : idx,
+      next: idx < 0 ? null : points[idx],
+      pct: Math.round(100 * points.reduce((a, p) => a + p.progress, 0) / points.length),
+    };
+  }
+
   /* ---------- значки ----------
      test — получен ли; progress — 0..1, насколько близко (для «следующего»). */
   const BADGES = [
@@ -270,7 +306,7 @@
     };
   }
 
-  const M = { readiness, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
+  const M = { readiness, route, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

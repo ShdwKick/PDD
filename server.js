@@ -230,6 +230,9 @@ function routeSeo(rel) {
   if (rel === "garazh") {
     return { title: `Гараж — ${SERVICE_NAME}`, description: "Цвета и детали для машины за рубежи огонька: 3, 7, 14, 30, 50 и 100 дней подготовки к экзамену ПДД подряд.", noindex: true };
   }
+  if (rel === "road") {
+    return { title: `Дорога к правам — ${SERVICE_NAME}`, description: "Личная дорога подготовки к экзамену ПДД: отметки от первого вопроса до «Готов к ГАИ».", noindex: true };
+  }
   if (rel === "sources") {
     return { title: `Источники — ${SERVICE_NAME}`, description: "Откуда вопросы билетов ПДД и правила: Госавтоинспекция МВД России, ПДД РФ (постановление № 1090). Неофициальное приложение." };
   }

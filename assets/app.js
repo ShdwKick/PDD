@@ -789,6 +789,7 @@ function route() {
   if (p === "/oshibki") return renderMistakes();
   if (p === "/temy") return renderTopics();
   if (p === "/znachki") return renderBadges();
+  if (p === "/road") return renderRoad();
   if (p === "/garazh") return renderGarage();
   if (p === "/widget") return renderWidget();
   if (p === "/sources") return renderSources();
@@ -1071,6 +1072,28 @@ async function pairAction(path, method, body) {
   return true;
 }
 
+const exitIcon = `<svg class="icon" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>`;
+
+/** Общий огонёк, разделённый пополам: левая половина — вы, правая — напарник.
+ * Выполнил норму — его половина горит (цвета — по рубежу общей серии, как у
+ * обычного огонька); оба — половинки сходятся в целый огонь с ядром. */
+function splitFlameSvg(meDone, partnerDone, streak) {
+  const t = FLAME_TIERS[M.flameTier(streak)];
+  const both = meDone && partnerDone;
+  const half = (side, lit) => `<path class="half ${lit ? "on" : ""}" d="${FLAME_PATH}" clip-path="url(#pf-${side})"
+    ${lit ? `style="fill:url(#pf-o)"` : ""}/>`;
+  return `<svg class="split-flame ${both ? "both" : ""}" viewBox="0 0 24 24" aria-hidden="true">
+    <defs>
+      <clipPath id="pf-l"><rect x="0" y="0" width="11.6" height="24"/></clipPath>
+      <clipPath id="pf-r"><rect x="12.4" y="0" width="11.6" height="24"/></clipPath>
+      <linearGradient id="pf-o" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.o[0]}"/><stop offset=".6" stop-color="${t.o[1]}"/><stop offset="1" stop-color="${t.o[2]}"/></linearGradient>
+      <linearGradient id="pf-i" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${t.i[0]}"/><stop offset="1" stop-color="${t.i[1]}"/></linearGradient>
+    </defs>
+    ${both ? `<path class="whole" d="${FLAME_PATH}" fill="url(#pf-o)"/><path class="core" d="${FLAME_PATH}" fill="url(#pf-i)"/>`
+      : half("l", meDone) + half("r", partnerDone)}
+  </svg>`;
+}
+
 function renderPairCard() {
   const box = $("pairCard");
   if (!box) return;
@@ -1102,15 +1125,21 @@ function renderPairCard() {
       </div>`;
     const nudgeBtn = pair.partner.todayDone ? ""
       : `<button type="button" class="btn-mini" data-nudge="${esc(pair.partner.userId)}" data-done="подтолкнули">Подтолкнуть</button>`;
+    const meDone = pair.me.todayDone, partnerDone = pair.partner.todayDone;
+    const state = meDone && partnerDone ? "сегодня горит целиком"
+      : meDone ? `ваша половина горит, ждём ${name}` : partnerDone ? `${name} — горит, ваша половина ждёт вас` : "сегодня пока не горит";
     box.innerHTML = `<div class="card pair-card" data-state="${flame}">
+        <button type="button" class="icon-btn pair-exit" data-pair-act="leave-active" aria-label="Выйти из пары" title="Выйти из пары">${exitIcon}</button>
         <div class="pair-main">
-          ${flameSvg(flame, "", n)}
-          <div class="pair-text"><b>Огонёк с ${name}: ${n} ${daysWord(n)}</b>
-            <span>вы ${pair.me.todayDone ? "✓" : "ещё нет"} · ${name} — ${pair.partner.todayDone ? "✓" : "ещё нет"}</span></div>
+          <figure class="pair-flame" role="img" aria-label="Общий огонёк: ${state}">
+            ${splitFlameSvg(meDone, partnerDone, n)}
+            <figcaption><span class="${meDone ? "on" : ""}">вы</span><span class="${partnerDone ? "on" : ""}">${name}</span></figcaption>
+          </figure>
+          <div class="pair-text"><b>Огонёк с ${name}</b>
+            <span class="pair-days">${n} ${daysWord(n)}</span></div>
           <div class="pair-btns">${nudgeBtn}</div>
         </div>
         ${rescue}${msg}
-        <button type="button" class="btn-mini ghost pair-leave" data-pair-act="leave-active">Выйти из пары</button>
       </div>`;
   }
   for (const b of box.querySelectorAll("[data-nudge]")) b.addEventListener("click", () => nudge(b));
@@ -1292,10 +1321,41 @@ function medal(b, cls = "") {
   </svg></span>`;
 }
 
-/** Готовность к экзамену — полоса внизу приборки: 20 делений, отметка 90%. */
+/** Где машина на дороге: 0..1 от «Старта» до «Готов к ГАИ». Между последней
+ * пройденной отметкой и следующей — по прогрессу до следующей. */
+const roadPos = rd => rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) / (rd.points.length - 1) : 1;
+
+/** Своя машина для дороги как готовый HTML: копия с префиксом градиентов,
+ * покрашенная по гаражу (applyCar работает с элементом, поэтому через
+ * временный). */
+function roadCar(prefix, f, cls, style) {
+  const el = document.createElement("span");
+  el.className = `car ${cls}`;
+  el.setAttribute("aria-hidden", "true");
+  el.setAttribute("style", style);
+  el.innerHTML = carSvg(prefix);
+  applyCar(el, M.carConfig(savedCar(), f.streak.best));
+  return el.outerHTML;
+}
+
+/** Мини-дорога на главной вместо полосы готовности: 8 отметок и машина,
+ * целиком ссылка на /road. Машина «смотрит» вправо — едет вдоль полосы. */
+function miniRoad(f) {
+  const rd = M.route(f), n = rd.points.length;
+  const dots = rd.points.map((p, i) =>
+    `<i class="rm-dot ${p.done ? "done" : p === rd.next ? "next" : ""}" style="--x:${(i / (n - 1)).toFixed(4)}"></i>`).join("");
+  const line = rd.next
+    ? `Следующий: <b>${esc(rd.next.title)}</b> — ${esc(rd.next.detail)}`
+    : "Все отметки пройдены";
+  return `<a class="rmini" href="/road" data-link aria-label="Дорога к правам: пройдено ${rd.reached} из ${n}">
+    <span class="rm-strip">${dots}${roadCar("r", f, "rm-car", `--x:${roadPos(rd).toFixed(4)}`)}</span>
+    <span class="rm-next">${line}</span>
+  </a>`;
+}
+
+/** Готовность к экзамену — внизу приборки: мини-дорога с отметками. */
 function readyBlock(f) {
   const r = M.readiness(f);
-  const segs = 20, on = Math.round(r.pct / 100 * segs);
   const steps = r.steps.map(x => x.href
     ? `<a class="btn-mini" href="${x.href}" data-link>${esc(x.text)}</a>`
     : `<span class="ready-step">${esc(x.text)}</span>`).join("");
@@ -1319,10 +1379,7 @@ function readyBlock(f) {
       <span class="ready-label">Готовность к экзамену${hint}</span>
       <b class="ready-pct">${r.pct}<small>%</small></b>
     </div>
-    <div class="ready-bar" role="img" aria-label="Готовность ${r.pct}%">
-      ${Array.from({ length: segs }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}
-      <em class="ready-goal" title="Цель — 90%"></em>
-    </div>
+    ${miniRoad(f)}
     <p class="ready-level"><b>${esc(r.level)}</b> · выучено ${r.know}% вопросов, сдано ${r.passes} из 5 последних экзаменов</p>
     ${steps ? `<div class="ready-steps">${steps}</div>` : ""}
   </div>`;
@@ -1665,6 +1722,89 @@ async function renderWidget() {
       $("wRevoke").replaceWith(Object.assign(document.createElement("p"), { className: "w-note", textContent: "Виджеты отключены." }));
     } catch (e) { console.error("Отключение виджетов:", e); }
   });
+}
+
+/* «Дорога к правам»: едем снизу вверх — старт внизу, финиш наверху, как
+   машина на фоне приложения уезжает от нас вперёд. Дорога — один SVG на всю
+   ширину (viewBox по x в процентах, по y в пикселях, preserveAspectRatio
+   none; толщина линий не масштабируется — non-scaling-stroke), а плашки-
+   указатели и машина — обычные элементы поверх, поставленные в тех же
+   координатах: так текст остаётся чётким и переносится на любой ширине. */
+const ROAD_STEP = 96, ROAD_PAD_BOTTOM = 50, ROAD_PAD_TOP = 74;
+const roadX = i => (i % 2 ? 70 : 30); // нечётные отметки справа, чётные слева
+
+function roadGeometry(n) {
+  const H = ROAD_PAD_BOTTOM + (n - 1) * ROAD_STEP + ROAD_PAD_TOP;
+  const ys = Array.from({ length: n }, (_, i) => H - ROAD_PAD_BOTTOM - i * ROAD_STEP);
+  const xs = ys.map((_, i) => roadX(i));
+  // Дорога выезжает из-под низа и уходит за верхний край флага; на стыках
+  // касательная вертикальна — получается плавная «змейка».
+  const pts = [[xs[0], H], ...ys.map((y, i) => [xs[i], y]), [xs[n - 1], 34]];
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], ym = (y0 + y1) / 2;
+    d += ` C${x0} ${ym} ${x1} ${ym} ${x1} ${y1}`;
+  }
+  return { H, ys, xs, d };
+}
+
+/** Точка на дороге при положении t (0..n-1 отметок от старта): x в %, y в px.
+ * Кривая между отметками не линейна, поэтому долю по высоте переводим в
+ * параметр кривой делением пополам. */
+function roadPoint(g, t) {
+  const n = g.ys.length, i = Math.min(n - 2, Math.floor(t)), u = t - i;
+  const y0 = g.ys[i], y1 = g.ys[i + 1], x0 = g.xs[i], x1 = g.xs[i + 1];
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 24; k++) {
+    const s = (lo + hi) / 2;
+    if (s ** 3 + 1.5 * s - 1.5 * s * s < u) lo = s; else hi = s;
+  }
+  const s = (lo + hi) / 2;
+  return { x: x0 + (x1 - x0) * (3 * s * s - 2 * s ** 3), y: y0 + (y1 - y0) * u };
+}
+
+const CHECK_ICON = `<svg class="rd-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+
+async function renderRoad() {
+  document.title = `Дорога к правам — ${SERVICE_NAME}`;
+  const cfg = await loadConfig();
+  if (me) { try { await loadMe(); } catch {} }
+  if (!stillOn("/road")) return;
+  const f = currentFacts(cfg);
+  setDrive(currentStreak(cfg));
+  const rd = M.route(f), r = M.readiness(f), n = rd.points.length, g = roadGeometry(n);
+  const t = rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) : n - 1;
+  const car = roadPoint(g, Math.min(t, n - 1)), car0 = roadPoint(g, 0);
+  const signs = rd.points.map((p, i) => {
+    const right = roadX(i) > 50;
+    const cls = `${p.done ? "done" : p === rd.next ? "next" : "later"} ${right ? "at-right" : "at-left"}`;
+    const side = right ? `right:calc(${100 - roadX(i)}% + 26px)` : `left:calc(${roadX(i)}% + 26px)`;
+    const more = p === rd.next
+      ? `<span class="rd-detail">${esc(p.detail)}</span><i class="bs-bar" style="--p:${(p.progress * 100).toFixed(0)}%"></i>` : "";
+    return `<div class="rd-sign ${cls}" style="top:${g.ys[i]}px;${side}">
+      <b>${p.done ? CHECK_ICON : ""}${esc(p.title)}</b>${more}</div>
+      <i class="rd-pin ${p.done ? "done" : p === rd.next ? "next" : ""}" style="left:${roadX(i)}%;top:${g.ys[i]}px"></i>`;
+  }).join("");
+  // Клетчатый флаг финиша: 6x3 клеток.
+  const flag = Array.from({ length: 18 }, (_, k) => (k % 6 + Math.floor(k / 6)) % 2
+    ? `<rect x="${(k % 6) * 6}" y="${Math.floor(k / 6) * 6}" width="6" height="6"/>` : "").join("");
+  const steps = r.steps.map(x => x.href
+    ? `<a class="btn-mini" href="${x.href}" data-link>${esc(x.text)}</a>`
+    : `<span class="ready-step">${esc(x.text)}</span>`).join("");
+  view.innerHTML = `
+    <div class="ex-header">
+      <a class="back-btn" href="/" data-link aria-label="На главную">${backIcon}</a>
+      <div class="titles"><h1>Дорога к правам</h1><p class="sub">Пройдено ${rd.reached} из ${n} · готовность ${r.pct}%</p></div>
+    </div>
+    <div class="road-page" style="height:${g.H}px">
+      <svg class="rd-svg" viewBox="0 0 100 ${g.H}" preserveAspectRatio="none" aria-hidden="true">
+        <path class="rd-edge" d="${g.d}"/><path class="rd-asph" d="${g.d}"/><path class="rd-dash" d="${g.d}"/>
+      </svg>
+      <div class="rd-finish" style="left:${g.xs[n - 1]}%"><svg viewBox="0 0 36 18" aria-hidden="true" width="36" height="18"><g fill="currentColor">${flag}</g><rect x="0" y="0" width="36" height="18" fill="none" stroke="currentColor" stroke-width="1"/></svg><span>Финиш</span></div>
+      ${signs}
+      ${roadCar("rd", f, "rd-car", `left:${car.x.toFixed(2)}%;top:${car.y.toFixed(1)}px;--x0:${car0.x}%;--y0:${car0.y}px`)}
+    </div>
+    ${steps ? `<h2 class="section-title">Что дальше</h2><div class="ready-steps rd-steps">${steps}</div>` : ""}`;
 }
 
 async function renderBadges() {
