@@ -1338,29 +1338,29 @@ function sideCarSvg() {
   // детали (полоса света на крыше и под стёклами, большие стопы, тёмные колёса,
   // спойлер в тёмном оттенке кузова, полосы, огонь из выхлопа, мягкая подсветка).
   // Едет вправо: багажник слева. Градиент подсветки — один на страницу.
-  return `<svg viewBox="-4 4 156 58" aria-hidden="true">
+  return `<svg viewBox="-4 4 146 58" aria-hidden="true">
     <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient></defs>
-    <ellipse class="part p-glow" cx="78" cy="54" rx="74" ry="7" fill="url(#sideGlow)"/>
-    <ellipse class="car-shadow" cx="78" cy="54.6" rx="66" ry="2.6"/>
+    <ellipse class="part p-glow" cx="74" cy="54" rx="68" ry="7" fill="url(#sideGlow)"/>
+    <ellipse class="car-shadow" cx="74" cy="54.6" rx="60" ry="2.6"/>
     <g class="part p-fire"><path class="exhaust" d="M11 42 Q4 40 -3 42.7 Q4 45.5 11 43.7 Z"/></g>
-    <path class="body" style="fill:var(--car-body)" d="M10 46 L10 33 Q10 29 15 28.5 L38 27 L54 13.5 Q57 11.5 62 11.5 L94 11.5 Q99 11.5 103 14 L118 26.5 L139 29 Q146 30 146 36 L146 46 Z"/>
-    <path class="light" d="M55 13.2 Q57.5 11.5 62 11.5 L94 11.5 Q99 11.5 102.5 13.8 L101 15 L56.5 15 Z"/>
-    <path class="glass" d="M43 26.5 L56 15.2 Q58 15 61 15 L76 15 L76 26.5 Z"/>
-    <path class="glass" d="M79 15 L94 15 Q98.5 15 101.5 17 L113 26.5 L79 26.5 Z"/>
-    <path class="glint" d="M60 15 L67 15 L56 26.5 L49 26.5 Z"/>
-    <path class="light" d="M36 26.8 L119 26.8 L122 29 L34 29 Z"/>
-    <path class="mirror" d="M108 23.5 L114.5 22.5 Q116.5 22.3 116.4 24.3 L115.6 26.6 L109.5 26.6 Z"/>
-    <path class="crease" d="M14 36 L144 36"/>
-    <path class="tail" d="M10 30.6 L20 29.9 L19 35.6 L10 36.2 Z"/>
-    <path d="M139 30.6 L146 31.8 L146 34.6 L140 34.1 Z" style="fill:#e8eef6"/>
-    <path class="bumper" d="M10 39 L17 39 L17 46 L13 46 Q10 46 10 43 Z"/>
-    <path class="bumper" d="M139 39 L146 39 L146 43 Q146 46 143 46 L139 46 Z"/>
-    <rect class="bumper" x="44" y="43.8" width="68" height="2.4" rx="1"/>
-    <g class="part p-stripes"><path d="M14 28.7 L38 27.2 L54 13.7 Q57 11.7 62 11.7 L94 11.7 Q99 11.7 103 14.2 L118 26.7 L142 29.4" style="fill:none;stroke:var(--stripe,#f4f6f8);stroke-width:2.6;opacity:.92"/></g>
-    <g class="part p-spoiler"><rect class="sp-leg" x="15" y="23.5" width="3" height="5"/><rect class="sp-leg" x="24" y="23.5" width="3" height="4"/><path class="sp-wing" d="M8 20.5 L31 20.5 L30 23.8 L9.5 23.8 Z"/></g>
-    <circle cx="34" cy="46" r="11.5" style="fill:#0b0e13"/><circle cx="122" cy="46" r="11.5" style="fill:#0b0e13"/>
-    <circle class="tyre" cx="34" cy="46" r="9.5"/><circle cx="34" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="34" cy="46" r="1.6" style="fill:#4a525d"/>
-    <circle class="tyre" cx="122" cy="46" r="9.5"/><circle cx="122" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="122" cy="46" r="1.6" style="fill:#4a525d"/>
+    <path class="body" style="fill:var(--car-body)" d="M10 46 L10 33 Q10 29 15 28.5 L30 27.5 L45 13.5 Q48 11.5 53 11.5 L80 11.5 Q85 11.5 89 14 L104 26.5 L131 29 Q138 30 138 36 L138 46 Z"/>
+    <path class="light" d="M46 13.2 Q48.5 11.5 53 11.5 L80 11.5 Q85 11.5 88.5 13.8 L87 15 L47.5 15 Z"/>
+    <path class="glass" d="M35 26.5 L47 15.2 Q49 15 52 15 L65 15 L65 26.5 Z"/>
+    <path class="glass" d="M68 15 L80 15 Q84.5 15 87.5 17 L99 26.5 L68 26.5 Z"/>
+    <path class="glint" d="M51 15 L57 15 L47 26.5 L41 26.5 Z"/>
+    <path class="light" d="M28 26.8 L105 26.8 L108 29 L26 29 Z"/>
+    <path class="mirror" d="M94 23.5 L100.5 22.5 Q102.5 22.3 102.4 24.3 L101.6 26.6 L95.5 26.6 Z"/>
+    <path class="crease" d="M14 36 L136 36"/>
+    <path class="tail" d="M10 30.6 L19 29.9 L18 35.6 L10 36.2 Z"/>
+    <path d="M131 30.6 L138 31.8 L138 34.6 L132 34.1 Z" style="fill:#e8eef6"/>
+    <path class="bumper" d="M10 39 L16 39 L16 46 L13 46 Q10 46 10 43 Z"/>
+    <path class="bumper" d="M131 39 L138 39 L138 43 Q138 46 135 46 L131 46 Z"/>
+    <rect class="bumper" x="41" y="43.8" width="63" height="2.4" rx="1"/>
+    <g class="part p-stripes"><path d="M14 28.7 L30 27.7 L45 13.7 Q48 11.7 53 11.7 L80 11.7 Q85 11.7 89 14.2 L104 26.7 L134 29.4" style="fill:none;stroke:var(--stripe,#f4f6f8);stroke-width:2.6;opacity:.92"/></g>
+    <g class="part p-spoiler"><rect class="sp-leg" x="13" y="23.5" width="3" height="5"/><rect class="sp-leg" x="21" y="23.5" width="3" height="4.2"/><path class="sp-wing" d="M7 20.5 L27 20.5 L26 23.8 L8.5 23.8 Z"/></g>
+    <circle cx="30" cy="46" r="11.5" style="fill:#0b0e13"/><circle cx="116" cy="46" r="11.5" style="fill:#0b0e13"/>
+    <circle class="tyre" cx="30" cy="46" r="9.5"/><circle cx="30" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="30" cy="46" r="1.6" style="fill:#4a525d"/>
+    <circle class="tyre" cx="116" cy="46" r="9.5"/><circle cx="116" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="116" cy="46" r="1.6" style="fill:#4a525d"/>
   </svg>`;
 }
 
