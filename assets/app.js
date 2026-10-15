@@ -1524,40 +1524,13 @@ function badgeToast({ title, sub, b }) {
 
 /* ---------- страница «Значки и рекорды» ---------- */
 
-/* ---------- источники ----------
-   Google Play требует для приложений с информацией госорганов явную рабочую
-   ссылку на первоисточник и отказ от связи с ними. Ссылка — на раздел
-   «Экзаменационная работа» Госавтоинспекции: он открывается и из-за рубежа
-   (проверяющие Google), в отличие от pravo.gov.ru — его даём реквизитами. */
-const SOURCE_EXAM_URL = "https://xn--80aebkobnwfcnsfk1e0h.xn--p1ai/mens/exam";
-
-async function renderSources() {
-  document.title = `Источники — ${SERVICE_NAME}`;
-  const cfg = await loadConfig();
-  if (!stillOn("/sources")) return;
-  setDrive(currentStreak(cfg));
-  const ext = (href, text) => `<a href="${href}" rel="noopener" target="_blank">${text}</a>`;
-  docPage("Источники", "Откуда вопросы и правила", `
-    <h2>Неофициальное приложение</h2>
-    <p>«${esc(SERVICE_NAME)}» — независимый тренажёр. Он не является официальным приложением Госавтоинспекции (ГИБДД), МВД России или другого государственного органа и не связан с ними. Официальная информация — только на сайтах госорганов ниже.</p>
-
-    <h2>Экзаменационные билеты</h2>
-    <p>Вопросы и правильные ответы — экзаменационные билеты для категорий A, B и M, по которым сдают теоретический экзамен в Госавтоинспекции. Порядок экзамена, документы и официальная информация — на сайте Госавтоинспекции МВД России:</p>
-    <p>${ext(SOURCE_EXAM_URL, "госавтоинспекция.рф — «Экзаменационная работа»")}</p>
-    <p class="muted">Вопросы собраны в открытой базе ${ext("https://github.com/etspring/pdd_russia", "pdd_russia")}, версия ${esc(cfg.dataset.version)}.</p>
-
-    <h2>Правила дорожного движения</h2>
-    <p>Ответы опираются на Правила дорожного движения Российской Федерации, утверждённые постановлением Совета Министров — Правительства Российской Федерации от 23 октября 1993 г. № 1090. Официальный текст с изменениями — на Официальном интернет-портале правовой информации (pravo.gov.ru).</p>
-
-    <h2>Пояснения</h2>
-    <p>Пояснения к ответам написаны нами, своими словами, чтобы было проще запомнить. Если пояснение расходится с официальным текстом ПДД, верен официальный текст — напишите нам, исправим: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`);
-}
-
-/* ---------- политика конфиденциальности и удаление данных ----------
-   Нужны Google Play: ссылка на политику и на «как удалить аккаунт и данные».
-   Текст — по тому, что сервис действительно хранит (lib/store.js). */
+/* ---------- источники, конфиденциальность, удаление ----------
+   Тексты — в assets/pages.js (window.PddPages): тот же HTML сервер кладёт прямо
+   в страницу для роботов Google Play (без JavaScript они видят текст и ссылку
+   на первоисточник). Здесь — только рисуем и навешиваем кнопки. */
+const P = window.PddPages;
+const SOURCE_EXAM_URL = P.SOURCE_EXAM_URL;
 const CONTACT_EMAIL = "4d5.gamedev@gmail.com";
-const POLICY_DATE = "5 октября 2026 г.";
 
 function docPage(title, sub, html) {
   view.innerHTML = `
@@ -1568,44 +1541,27 @@ function docPage(title, sub, html) {
     <div class="card doc">${html}</div>`;
 }
 
-async function renderPrivacy() {
-  document.title = `Политика конфиденциальности — ${SERVICE_NAME}`;
+const pageCtx = (cfg, actions = "") => ({
+  serviceName: SERVICE_NAME, contactEmail: CONTACT_EMAIL, datasetVersion: cfg.dataset?.version,
+  authUrl: auth ? `${auth.authBase}/` : "https://auth.burninghouse.ru/", actions,
+});
+
+async function renderStaticPage(page, docTitle) {
+  document.title = `${docTitle} — ${SERVICE_NAME}`;
   const cfg = await loadConfig();
-  if (!stillOn("/privacy")) return;
+  if (!stillOn(page.path)) return null;
   setDrive(currentStreak(cfg));
-  const mail = `<a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>`;
-  docPage("Конфиденциальность", `Редакция от ${POLICY_DATE}`, `
-    <h2>Кратко</h2>
-    <p>«${esc(SERVICE_NAME)}» (pdd.burninghouse.ru и приложение для Android) — тренажёр билетов ПДД. Мы храним только то, что нужно для подготовки: ваши ответы, огонёк, план и настройки. Рекламы, сторонней аналитики и продажи данных нет.</p>
+  return cfg;
+}
 
-    <h2>Без входа</h2>
-    <p>Решать билеты можно без аккаунта. Тогда прогресс — ответы, огонёк, план, выбор машины — хранится только на вашем устройстве (в браузере или приложении) и на сервер не отправляется.</p>
+async function renderSources() {
+  const cfg = await renderStaticPage(P.PAGES.sources, "Источники");
+  if (cfg) docPage(P.PAGES.sources.title, P.PAGES.sources.sub, P.PAGES.sources.html(pageCtx(cfg)));
+}
 
-    <h2>Со входом: аккаунт BurningHouse</h2>
-    <p>Вход — через общий аккаунт BurningHouse (auth.burninghouse.ru). Логин, пароль, почту, имя и телефон (последние два — по желанию) хранит сервис аккаунтов; сюда приходят только идентификатор, логин и имя.</p>
-    <p>Чтобы прогресс был на всех устройствах, на нашем сервере хранятся:</p>
-    <ul>
-      <li>ваши ответы на вопросы (какой вариант и когда), результаты билетов и экзаменов;</li>
-      <li>огонёк: дни занятий, заморозки, план подготовки, часовой пояс и время напоминания;</li>
-      <li>выбор машины в гараже и текст на её номере;</li>
-      <li>если включили уведомления — адрес подписки браузера на уведомления (его выдаёт браузер, к вам лично он не ведёт);</li>
-      <li>если подключили виджет на экран телефона — ключ виджета (в базе только его отпечаток), который даёт виджету только читать огонёк.</li>
-    </ul>
-
-    <h2>Что видят друзья</h2>
-    <p>Друзья — те, кого вы сами добавили в аккаунте BurningHouse. Они видят ваш огонёк, выполнена ли норма сегодня, сколько билетов сдано, последний экзамен (сдан или нет), число значков и вашу машину. Конкретные ответы и ошибки не видит никто. Друг может «подтолкнуть» вас — придёт уведомление.</p>
-
-    <h2>Кому передаём</h2>
-    <p>Никому не продаём и не передаём для рекламы. Уведомления на устройство доставляет служба уведомлений вашего браузера (например, Google для Chrome) — она получает зашифрованное сообщение, которое прочитать не может. Технические журналы сервера (время и адрес запроса) хранятся ограниченное время — чтобы разбирать сбои и защищаться от атак.</p>
-
-    <h2>Сколько храним и как удалить</h2>
-    <p>Пока у вас есть аккаунт. Удалить данные подготовки или аккаунт целиком можно самостоятельно — как, написано на странице <a href="/delete-account" data-link>«Удаление аккаунта и данных»</a>. После удаления аккаунта BurningHouse данные подготовки стираются автоматически в течение двух суток.</p>
-
-    <h2>Дети</h2>
-    <p>Сервис рассчитан на тех, кто готовится к экзамену на права, и не предназначен для детей младше 13 лет.</p>
-
-    <h2>Контакты</h2>
-    <p>Вопросы о данных и просьбы об удалении — на ${mail}. Если политика изменится, новая редакция появится на этой странице с новой датой.</p>`);
+async function renderPrivacy() {
+  const cfg = await renderStaticPage(P.PAGES.privacy, "Политика конфиденциальности");
+  if (cfg) docPage(P.PAGES.privacy.title, P.PAGES.privacy.sub, P.PAGES.privacy.html(pageCtx(cfg)));
 }
 
 /** Стереть прогресс на этом устройстве: всё «bh-pdd-*», кроме метки «запущено из приложения». */
@@ -1616,30 +1572,17 @@ function wipeLocalProgress() {
 }
 
 async function renderDeletion() {
-  document.title = `Удаление аккаунта и данных — ${SERVICE_NAME}`;
-  const cfg = await loadConfig();
-  if (!stillOn("/delete-account")) return;
-  setDrive(currentStreak(cfg));
-  const mail = `<a href="mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`${SERVICE_NAME}: удаление данных`)}">${CONTACT_EMAIL}</a>`;
-  const account = auth ? `${esc(auth.authBase)}/` : "https://auth.burninghouse.ru/";
-  docPage("Удаление аккаунта и данных", "Сами, в пару нажатий — без писем и ожидания", `
-    <h2>Удалить только данные подготовки</h2>
-    <p>Сотрутся ответы, огонёк, экзамены, план, машина, ключи виджета и подписки на уведомления — и на сервере, и на этом устройстве. Аккаунт BurningHouse останется.</p>
-    <div class="del-actions">
+  const page = P.PAGES.deletion;
+  const cfg = await renderStaticPage(page, "Удаление аккаунта и данных");
+  if (!cfg) return;
+  const actions = `<div class="del-actions">
       ${me
         ? `<button type="button" class="btn danger-outline" id="delData">Удалить мои данные подготовки</button>`
         : auth ? `<p class="muted">Чтобы удалить данные на сервере, войдите — без входа их там нет.</p><button type="button" class="btn" data-login>Войти</button>` : ""}
       <button type="button" class="btn-mini ghost" id="delLocal">Стереть прогресс только на этом устройстве</button>
       <p class="muted" id="delStatus" role="status"></p>
-    </div>
-
-    <h2>Удалить аккаунт целиком</h2>
-    <p>Аккаунт BurningHouse удаляется в его кабинете: <a href="${account}" target="_blank" rel="noopener">auth.burninghouse.ru</a> → войдите → внизу «Удалить аккаунт». Удаляются логин, пароль, почта, имя, телефон, друзья и сессии. Данные подготовки в «${esc(SERVICE_NAME)}» после этого стираются автоматически в течение двух суток. Аккаунт общий — пропадёт доступ и к другим сервисам BurningHouse.</p>
-
-    <h2>Нет доступа к аккаунту</h2>
-    <p>Напишите на ${mail} с почты, привязанной к аккаунту, и укажите логин — удалим вручную в течение 30 дней.</p>
-
-    <p class="muted">Подробнее о том, что хранится, — в <a href="/privacy" data-link>политике конфиденциальности</a>.</p>`);
+    </div>`;
+  docPage(page.title, page.sub, page.html(pageCtx(cfg, actions)));
 
   view.querySelector("[data-login]")?.addEventListener("click", login);
   $("delLocal").addEventListener("click", () => {

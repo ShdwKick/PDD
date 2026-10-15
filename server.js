@@ -286,6 +286,23 @@ function injectSeo(html, rel, seo) {
     .replace(/<meta property="og:description" content="[^"]*">/, () => `<meta property="og:description" content="${d}">`);
 }
 
+/* Служебные страницы, которые проверяет Google Play (источник госинформации,
+   политика, удаление данных): их текст — сразу в HTML, а не только после
+   JavaScript. Робот без скриптов иначе видел скелет «Загрузка…» и не находил
+   ссылку на первоисточник. Тексты общие с браузером — assets/pages.js. */
+const PAGES = require("./assets/pages.js");
+const CONTACT_EMAIL = "4d5.gamedev@gmail.com"; // как в app.js — почта для вопросов о данных и удалении
+const STATIC_PAGES = { sources: PAGES.PAGES.sources, privacy: PAGES.PAGES.privacy, "delete-account": PAGES.PAGES.deletion };
+function injectStaticPage(html, rel) {
+  const page = STATIC_PAGES[rel];
+  if (!page) return html;
+  const body = PAGES.shell(page, {
+    serviceName: SERVICE_NAME, contactEmail: CONTACT_EMAIL, datasetVersion: META.version,
+    authUrl: AUTH_ISSUER + "/", actions: "",
+  });
+  return html.replace(/<main id="view"[\s\S]*?<\/main>/, () => `<main id="view">${body}</main>`);
+}
+
 // ---------- HTTP ----------
 
 const TYPES = {
@@ -625,7 +642,7 @@ const server = http.createServer((req, res) => {
     fs.readFile(path.join(ROOT, "index.html"), "utf8", (err, html) => {
       if (err) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" }).end("Internal Error"); return; }
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-cache" });
-      res.end(isHead ? undefined : injectSeo(html, rel === "index.html" ? "" : rel, seo));
+      res.end(isHead ? undefined : injectStaticPage(injectSeo(html, rel === "index.html" ? "" : rel, seo), rel));
     });
     return;
   }
