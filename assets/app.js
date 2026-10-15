@@ -1334,18 +1334,35 @@ const roadPos = rd => rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) /
  * машины сзади (tyre, glass, light, tail, части p-*), поэтому цвет кузова,
  * полосы, спойлер и подсветка из гаража ложатся сами (applyCar). */
 function sideCarSvg() {
-  return `<svg viewBox="0 0 120 50" aria-hidden="true">
-    <ellipse class="part p-glow" cx="60" cy="46" rx="54" ry="4" style="fill:var(--glow,#3aa0ff);opacity:.55"/>
-    <ellipse class="car-shadow" cx="60" cy="46" rx="50" ry="2.6"/>
-    <path class="part p-spoiler" d="M3 15 L17 15 L17 18 L14 21 L9 21 L7 18 Z" style="fill:var(--car-dark)"/>
-    <path style="fill:var(--car-body)" d="M6 33 Q6 24 15 23 L38 21 L50 11 Q53 8 58 8 L80 8 Q86 8 90 12 L99 21 L109 22.5 Q116 23.5 116 31 L116 36 Q116 39 113 39 L9 39 Q6 39 6 36 Z"/>
-    <path class="glass" d="M53 12.5 Q55 11 58 11 L69 11 L69 21 L42 21 Z"/>
-    <path class="glass" d="M72 11 L80 11 Q84.5 11 87.5 14 L94 21 L72 21 Z"/>
-    <g class="part p-stripes"><rect x="10" y="28" width="104" height="3" rx="1"/></g>
-    <path class="light" d="M110 25 L116 25.5 L116 29.5 L110 29 Z"/>
-    <path class="tail" d="M6 25 L11 24.5 L11 29.5 L6 30 Z"/>
-    <g><circle class="tyre" cx="29" cy="39" r="8"/><circle cx="29" cy="39" r="3.4" style="fill:#9aa4b1"/></g>
-    <g><circle class="tyre" cx="94" cy="39" r="8"/><circle cx="94" cy="39" r="3.4" style="fill:#9aa4b1"/></g>
+  // Седан в профиль: багажник слева, капот справа. Градиент кузова — один на
+  // страницу: мини-дорога у главной одна.
+  return `<svg viewBox="0 0 160 66" aria-hidden="true">
+    <defs><linearGradient id="sideBody" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" style="stop-color:var(--car-light)"/><stop offset=".35" style="stop-color:var(--car-body)"/><stop offset="1" style="stop-color:var(--car-dark)"/>
+    </linearGradient></defs>
+    <ellipse class="part p-glow" cx="82" cy="59" rx="74" ry="5" style="fill:var(--glow,#3aa0ff);opacity:.55"/>
+    <ellipse class="car-shadow" cx="82" cy="59" rx="68" ry="3"/>
+    <path class="part p-spoiler" d="M10 23 L30 23 L30 26 L26 26 L24 31 L20 31 L18 26 L10 26 Z" style="fill:var(--car-dark)"/>
+    <path style="fill:url(#sideBody)" d="M8 50 L8 38 Q8 32 15 31 L36 29.5 L52 15.5 Q55.5 13 61 13 L99 13 Q105 13 109.5 16.5 L127 29 L146 31.5 Q154 32.5 154 40 L154 49 Q154 53 150 53 L12 53 Q8 53 8 50 Z"/>
+    <path class="glass" d="M41 29.5 L54.5 17.5 Q56.5 16 60 16 L78 16 L78 29.5 Z"/>
+    <path class="glass" d="M82 16 L99 16 Q103.5 16 107 19 L120 29.5 L82 29.5 Z"/>
+    <path d="M60 16.5 L68 16.5 L56 29 L48 29 Z" style="fill:#fff;opacity:.08"/>
+    <g class="part p-stripes"><rect x="12" y="40" width="140" height="3.5" rx="1.5"/></g>
+    <path d="M10 36.5 L152 36.5" style="stroke:var(--car-light);stroke-width:1;opacity:.45"/>
+    <path d="M80 30 L80 51" style="stroke:var(--car-dark);stroke-width:1.2;opacity:.8"/>
+    <path d="M41 30 Q40 41 44 51" style="stroke:var(--car-dark);stroke-width:1;opacity:.5;fill:none"/>
+    <path d="M120 30 Q121 41 117 51" style="stroke:var(--car-dark);stroke-width:1;opacity:.5;fill:none"/>
+    <rect x="64" y="33" width="7" height="2" rx="1" style="fill:var(--car-dark)"/>
+    <rect x="100" y="33" width="7" height="2" rx="1" style="fill:var(--car-dark)"/>
+    <path d="M118 25 L125 24 Q127 24 127 26 L126 28.5 L119 28.5 Z" style="fill:var(--car-dark)"/>
+    <path d="M146 33 L154 34.5 L154 39 L147 38.5 Z" style="fill:#ffe9a8"/>
+    <path d="M8 33.5 L15 32.5 L15 38 L8 38.5 Z" class="tail"/>
+    <rect x="146" y="47" width="8" height="3" rx="1" style="fill:#171b22"/>
+    <rect x="8" y="47" width="9" height="3" rx="1" style="fill:#171b22"/>
+    <circle cx="40" cy="53" r="13" style="fill:#0b0e13"/>
+    <circle cx="124" cy="53" r="13" style="fill:#0b0e13"/>
+    <circle class="tyre" cx="40" cy="53" r="11"/><circle cx="40" cy="53" r="5.5" style="fill:#aeb6c1"/><circle cx="40" cy="53" r="1.8" style="fill:#5d6672"/>
+    <circle class="tyre" cx="124" cy="53" r="11"/><circle cx="124" cy="53" r="5.5" style="fill:#aeb6c1"/><circle cx="124" cy="53" r="1.8" style="fill:#5d6672"/>
   </svg>`;
 }
 

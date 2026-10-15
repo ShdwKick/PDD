@@ -1215,12 +1215,12 @@ a.lamp:hover{filter:brightness(1.1)}
 .rmini{display:block;margin-top:8px;color:inherit;text-decoration:none}
 .rm-strip{position:relative;display:block;height:40px;border-radius:10px;background:#141b26;border:1px solid var(--dash-edge);overflow:hidden}
 .rm-strip::before{content:"";position:absolute;left:12px;right:12px;top:50%;border-top:2px dashed #3a4659;transform:translateY(-1px)}
-.rm-dot{position:absolute;top:50%;left:calc(30px + (100% - 60px) * var(--x));width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#2a3547;border:2px solid #3a4659;box-sizing:border-box}
+.rm-dot{position:absolute;top:50%;left:calc(36px + (100% - 72px) * var(--x));width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#2a3547;border:2px solid #3a4659;box-sizing:border-box}
 .rm-dot.done{background:var(--ok);border-color:var(--ok);box-shadow:0 0 6px color-mix(in srgb,var(--ok) 70%,transparent)}
 .rm-dot.next{background:#141b26;border-color:var(--warn)}
 /* Машина «смотрит» вправо: тот же вид сзади, повёрнутый на 90 градусов. */
 /* Машина сбоку (sideCarSvg) — едет по полоске вправо, колёсами на дороге. */
-.car.rm-car{position:absolute;z-index:1;bottom:auto;top:50%;left:calc(30px + (100% - 60px) * var(--x));width:52px;transform:translate(-50%,-62%);pointer-events:none}
+.car.rm-car{position:absolute;z-index:1;bottom:auto;top:50%;left:calc(36px + (100% - 72px) * var(--x));width:68px;transform:translate(-50%,-66%);pointer-events:none}
 .car.rm-car svg{animation:none}
 .car.rm-car .p-glow,.car.rm-car .exhaust{animation:none}
 .rm-next{display:block;margin-top:7px;font-size:12.5px;line-height:1.35;color:var(--text-2)}
