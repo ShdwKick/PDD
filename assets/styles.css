@@ -1269,4 +1269,3 @@ body:has(.road-page) #car,body:has(.road-page) #car2{display:none}
 .push-ask-err:empty{display:none}
 .push-ask-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .push-ask-btns .btn{flex:1 1 140px}
-.push-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}

@@ -2662,7 +2662,7 @@ async function renderPlan() {
         </select></label>
       <div class="plan-opt remind" id="pushRow">
         <span class="po-body"><b>Уведомления на это устройство</b><span id="pushHint">Проверяю…</span></span>
-        <span class="push-btns"><button type="button" class="btn-mini ghost is-hidden" id="pushTest">Проверить</button><button type="button" class="btn-mini is-hidden" id="pushBtn"></button></span>
+        <button type="button" class="btn-mini is-hidden" id="pushBtn"></button>
       </div>` : ""}
       <p class="plan-note">${me
         ? "План меняется с сегодняшнего дня — прошлые дни не пересчитываются, огонёк не пострадает."
@@ -2846,12 +2846,11 @@ function maybeAskPush() {
 }
 
 async function setupPushRow() {
-  const hint = $("pushHint"), btn = $("pushBtn"), test = $("pushTest");
+  const hint = $("pushHint"), btn = $("pushBtn");
   if (!hint) return;
-  const show = (text, label, fn, withTest = false) => {
+  const show = (text, label, fn) => {
     hint.textContent = text;
     btn.classList.toggle("is-hidden", !label);
-    test.classList.toggle("is-hidden", !withTest);
     if (label) { btn.textContent = label; btn.disabled = false; btn.onclick = fn; }
   };
   if (!pushSupported()) {
@@ -2895,21 +2894,7 @@ async function setupPushRow() {
         await sub.unsubscribe().catch(() => {});
       }
       setupPushRow();
-    }, true);
-    test.onclick = async () => {
-      test.disabled = true;
-      try {
-        const r = await apiJson("/api/push/test", { method: "POST", body: {} });
-        const where = inAndroidApp() ? "приложения" : "браузера";
-        hint.textContent = r.sent
-          ? `Отправили — уведомление должно появиться через пару секунд. Нет? Проверьте, что уведомления ${where} включены в настройках телефона.`
-          : r.gone ? "Подписка устарела — подключаем заново…"
-          : r.error ? `Служба уведомлений ответила ошибкой: ${r.error}`
-          : "На сервере нет подписки этого устройства — нажмите «Выключить» и включите снова.";
-        if (r.gone && !r.sent) await ensurePush(reg).then(() => { hint.textContent = "Подключили заново — нажмите «Проверить» ещё раз."; });
-      } catch (e) { console.error("Push test:", e); hint.textContent = "Не получилось проверить — нет связи."; }
-      test.disabled = false;
-    };
+    });
     return;
   }
   show("Толчки друзей и «огонёк гаснет» — в уведомления телефона или компьютера, даже когда сайт закрыт.", "Включить", enable);

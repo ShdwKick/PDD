@@ -126,7 +126,6 @@ const plural = (n, one, few, many) => {
    включил уведомления. Отозванные подписки (404/410) стираются. Ошибки не
    роняют основное действие: уведомление в кабинете Auth всё равно есть. */
 const webpush = createWebPush({ dataDir: DATA_DIR, subject: process.env.VAPID_SUBJECT || SITE_URL });
-/** Возвращает { devices, sent, gone, errors } — для «Проверить уведомления». */
 async function pushTo(userId, message) {
   const r = { devices: 0, sent: 0, gone: 0, errors: [] };
   for (const sub of store.pushSubs(userId)) {
@@ -410,7 +409,7 @@ async function handleApi(req, res, pathname) {
   }
 
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe", "/api/push/test"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -591,16 +590,6 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === "/api/push/subscribe" && method === "POST") {
     return store.addPushSub(user.id, (await readJson(req)).subscription) ? json(res, 200, { ok: true }) : json(res, 400, { error: "bad_subscription" });
-  }
-  // «Проверить уведомления» на /plan: тестовое на все устройства человека и
-  // честный итог — дошло ли до push-сервиса, сколько устройств, какая ошибка.
-  if (pathname === "/api/push/test" && method === "POST") {
-    const r = await pushTo(user.id, {
-      title: "Уведомления работают",
-      body: "Сюда придут толчки друзей и вечернее «огонёк гаснет».",
-      url: PUBLIC_URL + "/", tag: "pdd-test",
-    });
-    return json(res, 200, { devices: r.devices, sent: r.sent, gone: r.gone, error: r.errors[0] || null });
   }
   if (pathname === "/api/push/unsubscribe" && method === "POST") {
     store.removePushSub(user.id, (await readJson(req)).endpoint);
