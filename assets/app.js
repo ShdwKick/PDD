@@ -2757,8 +2757,21 @@ const sameKey = (sub, key) => {
   return a.length === key.length && a.every((x, i) => x === key[i]);
 };
 
+/* Запрос разрешения и подписка могут не ответить вовсе: Chrome на Android
+   отдаёт уведомления сайта установленному приложению, и старая версия
+   приложения (без NotificationPermissionRequestActivity) запрос не показывает —
+   промис висит вечно, кнопка серая. Ждём разумно и объясняем, что делать. */
+const PERMISSION_WAIT_MS = 45 * 1000;   // человек может думать над окном браузера
+const SUBSCRIBE_WAIT_MS = 20 * 1000;
+const withTimeout = (promise, ms, name) => Promise.race([promise,
+  new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error(name), { name })), ms))]);
+
 /** Понятная причина, почему не включилось. */
 function pushErrorText(e) {
+  if (e?.name === "PermissionTimeout") return inAndroidApp()
+    ? "Приложение не показало запрос разрешения — обновите «Когда на права?» в Google Play и попробуйте снова."
+    : "Браузер не показал запрос разрешения. Если на телефоне стоит приложение «Когда на права?» — обновите его: Chrome передаёт ему уведомления этого сайта. Или разрешите вручную: ⋮ → «Настройки сайта» → «Уведомления».";
+  if (e?.name === "SubscribeTimeout") return "Служба уведомлений телефона не ответила — проверьте интернет и попробуйте ещё раз.";
   if (e?.name === "NotAllowedError") return "Браузер не разрешил уведомления — проверьте настройки уведомлений для этого сайта или приложения.";
   if (e?.name === "AbortError") return "Служба уведомлений браузера недоступна (бывает в браузерах без сервисов Google). Попробуйте в Chrome.";
   if (e?.name === "NoServiceWorker") return "Браузер не дал запустить фоновую часть приложения — без неё уведомления не работают.";
@@ -2775,12 +2788,12 @@ async function ensurePush(reg) {
   if (sub && !sameKey(sub, key)) { await sub.unsubscribe().catch(() => {}); sub = null; }
   if (!sub) {
     try {
-      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      sub = await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }), SUBSCRIBE_WAIT_MS, "SubscribeTimeout");
     } catch (e) {
       if (e?.name !== "InvalidStateError") throw e;
       // «Подписка с другим ключом уже есть» — снимаем и пробуем ещё раз.
       await (await reg.pushManager.getSubscription())?.unsubscribe().catch(() => {});
-      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      sub = await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }), SUBSCRIBE_WAIT_MS, "SubscribeTimeout");
     }
   }
   await apiJson("/api/push/subscribe", { method: "POST", body: { subscription: sub.toJSON() } });
@@ -2789,7 +2802,7 @@ async function ensurePush(reg) {
 
 /** Включить по нажатию: спросить разрешение и подписаться. true — включены. */
 async function enablePush() {
-  if (await Notification.requestPermission() !== "granted") return false;
+  if (await withTimeout(Notification.requestPermission(), PERMISSION_WAIT_MS, "PermissionTimeout") !== "granted") return false;
   const reg = await swReady();
   if (!reg) throw Object.assign(new Error("нет service worker"), { name: "NoServiceWorker" });
   await ensurePush(reg);
@@ -2810,8 +2823,10 @@ async function syncPushOnStart() {
 }
 
 /** Окно «Включить уведомления?» — раз в неделю, пока не включили и не запретили. */
-function maybeAskPush() {
-  if (!me || Notification.permission !== "default" || document.querySelector(".acc-backdrop")) return;
+function maybeAskPush(tries = 3) {
+  if (!me || Notification.permission !== "default") return;
+  // Открыто другое окно (аккаунт, праздник рубежа) — не перекрываем его, спросим чуть позже.
+  if (document.querySelector(".acc-backdrop, .finish-overlay")) { if (tries > 0) setTimeout(() => maybeAskPush(tries - 1), 5000); return; }
   try { if (Number(localStorage.getItem(PUSH_ASK_KEY)) > Date.now()) return; } catch {}
   const snooze = () => { try { localStorage.setItem(PUSH_ASK_KEY, String(Date.now() + PUSH_ASK_SNOOZE_MS)); } catch {} };
   const { back, close } = openModal("pushAskTitle", `

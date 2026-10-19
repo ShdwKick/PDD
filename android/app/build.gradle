@@ -22,8 +22,8 @@ android {
         minSdk 24
         targetSdk 36
         // Каждая загрузка в Google Play — новый versionCode.
-        versionCode 6
-        versionName "1.1.2"
+        versionCode 7
+        versionName "1.1.3"
         buildConfigField "String", "SITE_URL", "\"${siteUrl}\""
         resValue "string", "site_host", siteHost
         // ?app=android — сайт так узнаёт, что он внутри приложения (страница /widget).

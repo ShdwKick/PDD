@@ -39,16 +39,27 @@
             </intent-filter>
         </activity>
 
-        <!-- Разрешение на уведомления для сайта внутри приложения. -->
+        <!-- Уведомления сайта: Chrome отдаёт их приложению (и во вкладках браузера
+             тоже, если приложение стоит). DelegationService отвечает Chrome, а
+             системный запрос разрешения (Android 13+) показывает
+             NotificationPermissionRequestActivity — без неё в манифесте запрос
+             с сайта «висит» вечно: кнопка «Включить» серая и ничего не происходит.
+             SMALL_ICON — значок в строке состояния (одноцветный огонёк). -->
         <service
             android:name="com.google.androidbrowserhelper.trusted.DelegationService"
             android:enabled="true"
             android:exported="true">
+            <meta-data android:name="android.support.customtabs.trusted.SMALL_ICON" android:resource="@drawable/ic_notification" />
             <intent-filter>
                 <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Ключ виджета приходит с сайта (страница /widget): pddwidget://connect?token=… -->
         <activity
