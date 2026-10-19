@@ -2662,7 +2662,7 @@ async function renderPlan() {
         </select></label>
       <div class="plan-opt remind" id="pushRow">
         <span class="po-body"><b>Уведомления на это устройство</b><span id="pushHint">Проверяю…</span></span>
-        <button type="button" class="btn-mini is-hidden" id="pushBtn"></button>
+        <span class="push-btns"><button type="button" class="btn-mini ghost is-hidden" id="pushTest">Проверить</button><button type="button" class="btn-mini is-hidden" id="pushBtn"></button></span>
       </div>` : ""}
       <p class="plan-note">${me
         ? "План меняется с сегодняшнего дня — прошлые дни не пересчитываются, огонёк не пострадает."
@@ -2725,10 +2725,15 @@ async function renderPlan() {
 /* ---------- уведомления на устройство (Web Push) ----------
    Подписка — на этом браузере/устройстве: сервер шлёт на неё толчки друзей и
    вечернее «огонёк гаснет» (lib/webpush.js), sw.js их показывает. Разрешение
-   спрашиваем только по нажатию — браузеры не любят вопрос с порога. */
+   спрашиваем только по нажатию (кнопка на /plan или окно-предложение при
+   входе) — браузеры не любят вопрос с порога. Подписка привязана к ключу
+   сервера: сменился ключ — старая молча не работает, поэтому сверяем ключ и
+   при расхождении подписываемся заново (ensurePush). */
 
 const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const PUSH_ASK_KEY = "bh-pdd-push-ask";     // до какого времени не предлагать (мс)
+const PUSH_ASK_SNOOZE_MS = 7 * 24 * 3600 * 1000;
 
 function b64uToBytes(s) {
   const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
@@ -2740,11 +2745,113 @@ async function swReady() {
   return Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 5000))]);
 }
 
+let pushKeyCache = null;
+async function serverPushKey() {
+  if (!pushKeyCache) pushKeyCache = b64uToBytes((await (await fetch("/api/push/key")).json()).publicKey);
+  return pushKeyCache;
+}
+const sameKey = (sub, key) => {
+  const k = sub.options?.applicationServerKey;
+  if (!k) return true; // браузер не говорит, каким ключом подписан, — считаем, что верным
+  const a = new Uint8Array(k);
+  return a.length === key.length && a.every((x, i) => x === key[i]);
+};
+
+/** Понятная причина, почему не включилось. */
+function pushErrorText(e) {
+  if (e?.name === "NotAllowedError") return "Браузер не разрешил уведомления — проверьте настройки уведомлений для этого сайта или приложения.";
+  if (e?.name === "AbortError") return "Служба уведомлений браузера недоступна (бывает в браузерах без сервисов Google). Попробуйте в Chrome.";
+  if (e?.name === "NoServiceWorker") return "Браузер не дал запустить фоновую часть приложения — без неё уведомления не работают.";
+  if (e?.status) return "Сервер не принял подписку — попробуйте ещё раз чуть позже.";
+  return `Не получилось включить уведомления${e?.name ? ` (${e.name})` : ""} — попробуйте ещё раз.`;
+}
+
+/** Есть рабочая подписка под ключ сервера и она записана на сервере. Нужен
+ * granted (вызывать после разрешения). Подписка под старый ключ или «уже есть
+ * другая» — снимаем и подписываемся заново. Возвращает подписку или бросает. */
+async function ensurePush(reg) {
+  const key = await serverPushKey();
+  let sub = await reg.pushManager.getSubscription();
+  if (sub && !sameKey(sub, key)) { await sub.unsubscribe().catch(() => {}); sub = null; }
+  if (!sub) {
+    try {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    } catch (e) {
+      if (e?.name !== "InvalidStateError") throw e;
+      // «Подписка с другим ключом уже есть» — снимаем и пробуем ещё раз.
+      await (await reg.pushManager.getSubscription())?.unsubscribe().catch(() => {});
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    }
+  }
+  await apiJson("/api/push/subscribe", { method: "POST", body: { subscription: sub.toJSON() } });
+  return sub;
+}
+
+/** Включить по нажатию: спросить разрешение и подписаться. true — включены. */
+async function enablePush() {
+  if (await Notification.requestPermission() !== "granted") return false;
+  const reg = await swReady();
+  if (!reg) throw Object.assign(new Error("нет service worker"), { name: "NoServiceWorker" });
+  await ensurePush(reg);
+  try { localStorage.removeItem(PUSH_ASK_KEY); } catch {}
+  return true;
+}
+
+/** При старте у вошедшего: разрешение уже есть — тихо чиним подписку (новый
+ * ключ, стёрта сервером), иначе предлагаем включить окном (maybeAskPush). */
+async function syncPushOnStart() {
+  if (!me || !pushSupported()) return;
+  if (Notification.permission === "granted") {
+    const reg = await swReady();
+    if (reg) ensurePush(reg).catch(e => console.error("Push: не удалось обновить подписку:", e));
+    return;
+  }
+  if (Notification.permission === "default") setTimeout(maybeAskPush, 1500);
+}
+
+/** Окно «Включить уведомления?» — раз в неделю, пока не включили и не запретили. */
+function maybeAskPush() {
+  if (!me || Notification.permission !== "default" || document.querySelector(".acc-backdrop")) return;
+  try { if (Number(localStorage.getItem(PUSH_ASK_KEY)) > Date.now()) return; } catch {}
+  const snooze = () => { try { localStorage.setItem(PUSH_ASK_KEY, String(Date.now() + PUSH_ASK_SNOOZE_MS)); } catch {} };
+  const { back, close } = openModal("pushAskTitle", `
+    ${modalHead("pushAskTitle", "Включить уведомления?")}
+    <div class="push-ask">
+      ${bellIcon}
+      <ul>
+        <li>Вечером напомним, если огонёк вот-вот погаснет</li>
+        <li>Узнаете, когда друг или напарник вас подтолкнёт</li>
+        <li>Не больше пары уведомлений в день, без рекламы</li>
+      </ul>
+    </div>
+    <p class="push-ask-err" id="pushAskErr" role="status"></p>
+    <div class="push-ask-btns">
+      <button type="button" class="btn primary" id="pushAskYes">Включить</button>
+      <button type="button" class="btn" id="pushAskNo">Не сейчас</button>
+    </div>`, "push-ask-modal");
+  back.querySelector("#pushAskNo").addEventListener("click", () => { snooze(); close(); });
+  back.querySelector("[data-close].icon-btn")?.addEventListener("click", snooze);
+  back.querySelector("#pushAskYes").addEventListener("click", async () => {
+    const btn = back.querySelector("#pushAskYes");
+    btn.disabled = true;
+    try {
+      if (await enablePush()) return close();
+      snooze(); close(); // отказали в окне браузера — не пристаём неделю
+    } catch (e) {
+      console.error("Push:", e);
+      back.querySelector("#pushAskErr").textContent = pushErrorText(e);
+      btn.disabled = false;
+    }
+  });
+}
+
 async function setupPushRow() {
-  const hint = $("pushHint"), btn = $("pushBtn");
-  const show = (text, label, fn) => {
+  const hint = $("pushHint"), btn = $("pushBtn"), test = $("pushTest");
+  if (!hint) return;
+  const show = (text, label, fn, withTest = false) => {
     hint.textContent = text;
     btn.classList.toggle("is-hidden", !label);
+    test.classList.toggle("is-hidden", !withTest);
     if (label) { btn.textContent = label; btn.disabled = false; btn.onclick = fn; }
   };
   if (!pushSupported()) {
@@ -2757,32 +2864,55 @@ async function setupPushRow() {
   }
   const reg = await swReady();
   if (!reg) return show("Не получилось включить: браузер не дал запустить фоновую часть приложения.", null);
-  const sub = await reg.pushManager.getSubscription();
-  if (sub && Notification.permission === "granted") {
-    // Переподписываем на сервере — подписка могла остаться от другого аккаунта.
-    apiJson("/api/push/subscribe", { method: "POST", body: { subscription: sub.toJSON() } }).catch(() => {});
-    return show("Включены: толчки друзей и вечернее напоминание придут сюда.", "Выключить", async () => {
-      btn.disabled = true;
-      await apiJson("/api/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } }).catch(() => {});
-      await sub.unsubscribe().catch(() => {});
-      setupPushRow();
-    });
-  }
-  show("Толчки друзей и «огонёк гаснет» — в уведомления телефона или компьютера, даже когда сайт закрыт.", "Включить", async () => {
+
+  async function enable() {
     btn.disabled = true;
     try {
-      if (await Notification.requestPermission() !== "granted") return setupPushRow();
-      const { publicKey } = await (await fetch("/api/push/key")).json();
-      const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(publicKey) });
-      await apiJson("/api/push/subscribe", { method: "POST", body: { subscription: s.toJSON() } });
+      if (!(await enablePush())) {
+        hint.textContent = Notification.permission === "denied"
+          ? "Уведомления запрещены — разрешите их в настройках браузера или приложения."
+          : "Разрешение не дали — нажмите «Включить» ещё раз.";
+        btn.disabled = false;
+        return;
+      }
     } catch (e) {
       console.error("Push:", e);
-      hint.textContent = "Не получилось включить уведомления — попробуйте ещё раз.";
+      hint.textContent = pushErrorText(e);
       btn.disabled = false;
       return;
     }
     setupPushRow();
-  });
+  }
+
+  if (Notification.permission === "granted" && await reg.pushManager.getSubscription()) {
+    // Сверяем ключ и переписываем подписку на сервере — могла остаться от другого аккаунта или старого ключа.
+    try { await ensurePush(reg); } catch (e) { console.error("Push:", e); return show(pushErrorText(e), "Включить", enable); }
+    show("Включены: толчки друзей и вечернее напоминание придут сюда.", "Выключить", async () => {
+      btn.disabled = true;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await apiJson("/api/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } }).catch(() => {});
+        await sub.unsubscribe().catch(() => {});
+      }
+      setupPushRow();
+    }, true);
+    test.onclick = async () => {
+      test.disabled = true;
+      try {
+        const r = await apiJson("/api/push/test", { method: "POST", body: {} });
+        const where = inAndroidApp() ? "приложения" : "браузера";
+        hint.textContent = r.sent
+          ? `Отправили — уведомление должно появиться через пару секунд. Нет? Проверьте, что уведомления ${where} включены в настройках телефона.`
+          : r.gone ? "Подписка устарела — подключаем заново…"
+          : r.error ? `Служба уведомлений ответила ошибкой: ${r.error}`
+          : "На сервере нет подписки этого устройства — нажмите «Выключить» и включите снова.";
+        if (r.gone && !r.sent) await ensurePush(reg).then(() => { hint.textContent = "Подключили заново — нажмите «Проверить» ещё раз."; });
+      } catch (e) { console.error("Push test:", e); hint.textContent = "Не получилось проверить — нет связи."; }
+      test.disabled = false;
+    };
+    return;
+  }
+  show("Толчки друзей и «огонёк гаснет» — в уведомления телефона или компьютера, даже когда сайт закрыт.", "Включить", enable);
 }
 
-initAuth().catch(e => console.error("Вход недоступен:", e)).finally(() => { route(); showIncoming(); });
+initAuth().catch(e => console.error("Вход недоступен:", e)).finally(() => { route(); showIncoming(); syncPushOnStart(); });
