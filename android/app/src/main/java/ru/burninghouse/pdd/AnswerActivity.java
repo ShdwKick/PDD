@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 
-import com.google.androidbrowserhelper.trusted.LauncherActivity;
 
 /**
  * Нажали вариант в «вопросе дня». Окна нет: запомнить ответ — виджет сразу
@@ -35,7 +34,7 @@ public final class AnswerActivity extends Activity {
     }
 
     private void open(String path) {
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL + path), this, LauncherActivity.class);
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL + path), this, PddLauncherActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(i);
     }

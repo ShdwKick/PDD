@@ -9,7 +9,6 @@ import android.net.Uri;
 import android.view.View;
 import android.widget.RemoteViews;
 
-import com.google.androidbrowserhelper.trusted.LauncherActivity;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -218,7 +217,7 @@ final class WidgetRender {
 
     /** Открыть приложение (сайт в TWA) на нужной странице. */
     private static PendingIntent open(Context c, String path) {
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL + path), c, LauncherActivity.class);
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL + path), c, PddLauncherActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return PendingIntent.getActivity(c, path.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }

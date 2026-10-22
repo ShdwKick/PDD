@@ -6,8 +6,10 @@
 
 ## Как устроено
 
-- **Приложение** — `LauncherActivity` из androidbrowserhelper открывает
-  `https://pdd.burninghouse.ru/?app=android` в Chrome без адресной строки.
+- **Приложение** — `PddLauncherActivity` (наследник `LauncherActivity` из
+  androidbrowserhelper) открывает `https://pdd.burninghouse.ru/?app=android`
+  без адресной строки. Браузер — Chrome, даже если по умолчанию стоит другой
+  (в Яндекс Браузере не работают уведомления); нет Chrome — браузер по умолчанию.
   Без адресной строки — только если сайт подтверждает приложение файлом
   `/.well-known/assetlinks.json` (server.js, переменные `ANDROID_PACKAGE`,
   `ANDROID_CERT_SHA256`). Не подтвердил — откроется с адресной строкой.

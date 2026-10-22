@@ -15,9 +15,9 @@
         <!-- Связь «приложение ↔ сайт» с нашей стороны; с той — /.well-known/assetlinks.json. -->
         <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
 
-        <!-- Само приложение — сайт во весь экран (Trusted Web Activity). -->
+        <!-- Само приложение — сайт во весь экран (Trusted Web Activity), по возможности в Chrome. -->
         <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name=".PddLauncherActivity"
             android:exported="true"
             android:label="@string/app_name">
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="@string/launch_url" />
