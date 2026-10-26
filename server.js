@@ -213,7 +213,10 @@ const ANDROID_CERTS_DEFAULT = [
   "3D:1C:CF:E9:4B:C2:A4:CB:B1:D9:EA:EA:48:A5:ED:4C:49:4D:CA:59:F1:95:15:30:52:83:52:5F:26:3A:97:F6", // Google Play
   "9C:0A:87:11:81:BD:4A:C3:76:BC:20:73:D4:40:E5:36:18:B0:C3:E8:8F:79:C6:D3:1C:95:22:11:2E:BF:45:37", // ключ загрузки
 ].join(",");
-const ANDROID_CERTS = (process.env.ANDROID_CERT_SHA256 || ANDROID_CERTS_DEFAULT).split(",").map(x => x.trim().toUpperCase()).filter(x => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
+// ANDROID_CERT_SHA256 (compose на сервере) дополняет список, а не заменяет: иначе
+// забытая там старая строка молча выкидывала бы ключ Google Play.
+const ANDROID_CERTS = [...new Set(`${process.env.ANDROID_CERT_SHA256 || ""},${ANDROID_CERTS_DEFAULT}`.split(",").map(x => x.trim().toUpperCase()))]
+  .filter(x => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x));
 
 function routeSeo(rel) {
   if (rel === "") {
