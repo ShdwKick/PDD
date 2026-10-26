@@ -415,5 +415,27 @@ const run = (from, to) => Object.fromEntries(Array.from({ length: from - to + 1 
   eq("и можно звать заново", s.pairInvite("a", "c").ok, true);
 }
 
+{ // уведомления через приложение: включаются на ключе, копятся только при включённых
+  const s = fresh();
+  const msg = n => ({ title: "T" + n, body: "B", url: "https://x/", tag: "pdd-nudge" });
+  eq("выключены — не копим", [s.appNotifyOn("n"), s.addAppNote("n", msg(0))], [false, false]);
+  const t = s.createWidgetToken("n");
+  eq("чужой/кривой ключ — нет", [s.setAppNotify("x".repeat(43), true), s.appNotes("<bad>", 0)], [null, null]);
+  eq("ключ без включения — пусто", s.appNotes(t, 0), { notify: false, last: 0, notes: [] });
+  const other = s.createWidgetToken("other");
+  s.setAppNotify(other, true); s.addAppNote("other", msg(9));
+  const on = s.setAppNotify(t, true);
+  eq("включили — с какого начинать (чужие не в счёт)", [on.notify, on.last, s.appNotifyOn("n")], [true, 0, true]);
+  s.addAppNote("n", msg(1)); s.addAppNote("n", msg(2));
+  const got = s.appNotes(t, on.last);
+  eq("забираем новые по порядку, только свои", [got.notes.map(x => x.title), got.notes[0].tag], [["T1", "T2"], "pdd-nudge"]);
+  eq("второй раз с курсора — пусто", s.appNotes(t, got.last).notes.length, 0);
+  eq("без курсора — только с текущего", s.appNotes(t, undefined).notes.length, 0);
+  s.disableAppNotify("n");
+  eq("выключили с сайта — приложение узнаёт", [s.appNotes(t, 0).notify, s.appNotifyOn("n"), s.addAppNote("n", msg(3))], [false, false, false]);
+  s.deleteUserData("n");
+  eq("удаление данных — и ключ, и уведомления", s.setAppNotify(t, true), null);
+}
+
 console.log(fails ? `\nПровалено: ${fails}` : "\nВсё прошло.");
 process.exit(fails ? 1 : 0);
