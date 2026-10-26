@@ -76,6 +76,20 @@
             </intent-filter>
         </activity>
 
+        <!-- Уведомления через приложение (а не Chrome): pddwidget://notify?token=… с сайта. -->
+        <activity
+            android:name=".NotifyActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pddwidget" android:host="notify" />
+            </intent-filter>
+        </activity>
+
         <!-- Ответ на «вопрос дня» из виджета: только наши PendingIntent, снаружи не открыть. -->
         <activity
             android:name=".AnswerActivity"

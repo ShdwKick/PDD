@@ -10,6 +10,12 @@
   androidbrowserhelper) открывает `https://pdd.burninghouse.ru/?app=android`
   без адресной строки. Браузер — Chrome, даже если по умолчанию стоит другой
   (в Яндекс Браузере не работают уведомления); нет Chrome — браузер по умолчанию.
+- **Уведомления** (с 1.2.0) — от самого приложения, а не Web Push в Chrome:
+  «Включить» на сайте открывает `pddwidget://notify?token=…` (`NotifyActivity`
+  спрашивает разрешение Android), а `RefreshWorker` раз в ~15 минут забирает
+  новые с `GET /api/widget/notes` (`AppNotifier`). Сервер кладёт туда всё, что
+  шлёт в Web Push (`pushTo` → `app_notes`). Сайт узнаёт такое приложение по
+  `?app=android.push` в адресе запуска.
   Без адресной строки — только если сайт подтверждает приложение файлом
   `/.well-known/assetlinks.json` (server.js, переменные `ANDROID_PACKAGE`,
   `ANDROID_CERT_SHA256`). Не подтвердил — откроется с адресной строкой.

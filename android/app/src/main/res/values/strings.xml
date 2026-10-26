@@ -21,6 +21,10 @@
     <string name="widget_q_wrong">Ошибка — пояснение в приложении</string>
     <string name="connect_ok">Виджет подключён</string>
     <string name="connect_ok_add">Виджет подключён. Добавьте его: долгое нажатие на главном экране → Виджеты → «Когда на права?»</string>
+    <string name="notify_ok">Уведомления включены: толчки друзей и «огонёк гаснет» придут от приложения</string>
+    <string name="notify_denied">Android не разрешил уведомления — включите их для «Когда на права?» в настройках</string>
+    <string name="notify_bad">Не получилось включить уведомления — нажмите «Включить» в приложении ещё раз</string>
+    <string name="notify_channel">Напоминания и толчки друзей</string>
     <string name="connect_bad">Не получилось подключить виджет — откройте «Виджет на экран» в приложении ещё раз</string>
     <!-- Связь с сайтом для TWA; вторая половина — /.well-known/assetlinks.json (server.js). -->
     <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://pdd.burninghouse.ru\"}}]</string>

@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Забирает огонёк с сайта (GET /api/widget по ключу виджета) и перерисовывает
- * виджеты. Раз в 15 минут — чаще Android фоновую работу не пускает; плюс
+ * виджеты, заодно — новые уведомления (AppNotifier), если они включены. Раз в 15 минут — чаще Android фоновую работу не пускает; плюс
  * сразу после подключения и когда виджет поставили на экран.
  */
 public final class RefreshWorker extends Worker {
@@ -77,6 +77,12 @@ public final class RefreshWorker extends Worker {
             WidgetRender.updateAll(c);
             return Result.success();
         }
+        try {
+            AppNotifier.run(c, token);
+        } catch (Exception e) {
+            // Уведомления не забрались (нет сети) — заберём при следующем обновлении.
+            Log.w(TAG, "Уведомления не обновились", e);
+        }
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(BuildConfig.SITE_URL + "/api/widget").openConnection();
@@ -108,7 +114,7 @@ public final class RefreshWorker extends Worker {
         }
     }
 
-    private static String read(InputStream in) throws IOException {
+    static String read(InputStream in) throws IOException {
         try (InputStream s = in; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buf = new byte[4096];
             int n;

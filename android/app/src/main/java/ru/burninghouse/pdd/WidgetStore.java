@@ -28,13 +28,35 @@ final class WidgetStore {
 
     /** Новый ключ — старые данные чужие (мог быть другой аккаунт), стираем. */
     static void setToken(Context c, String token) {
-        prefs(c).edit().putString(KEY_TOKEN, token).remove(KEY_DATA).apply();
+        // Уведомления включены на сервере на старом ключе — переносим на новый.
+        prefs(c).edit().putString(KEY_TOKEN, token).remove(KEY_DATA).putBoolean(KEY_NOTIFY_SYNCED, false).apply();
     }
 
     /** Ключ отозван на сайте — но только если это всё ещё он: пока шёл
      * запрос, могли подключить новый. */
     static void clearIfToken(Context c, String token) {
-        if (token.equals(token(c))) prefs(c).edit().remove(KEY_TOKEN).remove(KEY_DATA).apply();
+        if (token.equals(token(c))) prefs(c).edit().remove(KEY_TOKEN).remove(KEY_DATA).putBoolean(KEY_NOTIFY, false).apply();
+    }
+
+    /* ---------- уведомления через приложение (AppNotifier) ----------
+       notify — человек включил их здесь и Android разрешил; synced — сервер
+       знает об этом для текущего ключа; cursor — последнее показанное. */
+    private static final String KEY_NOTIFY = "notify";
+    private static final String KEY_NOTIFY_SYNCED = "notify_synced";
+    private static final String KEY_NOTIFY_CURSOR = "notify_cursor";
+
+    static boolean notifyOn(Context c) { return prefs(c).getBoolean(KEY_NOTIFY, false); }
+    static boolean notifySynced(Context c) { return prefs(c).getBoolean(KEY_NOTIFY_SYNCED, false); }
+    static long notifyCursor(Context c) { return prefs(c).getLong(KEY_NOTIFY_CURSOR, 0); }
+
+    /** Включить/выключить здесь; серверу сообщит AppNotifier при обновлении. */
+    static void setNotify(Context c, boolean on) {
+        prefs(c).edit().putBoolean(KEY_NOTIFY, on).putBoolean(KEY_NOTIFY_SYNCED, false).apply();
+    }
+
+    /** Показали всё до last; заодно — сервер знает, что включены. */
+    static void setNotifyCursor(Context c, long last) {
+        prefs(c).edit().putLong(KEY_NOTIFY_CURSOR, last).putBoolean(KEY_NOTIFY_SYNCED, true).apply();
     }
 
     static JSONObject data(Context c) {

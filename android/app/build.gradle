@@ -22,12 +22,13 @@ android {
         minSdk 24
         targetSdk 36
         // Каждая загрузка в Google Play — новый versionCode.
-        versionCode 8
-        versionName "1.1.4"
+        versionCode 9
+        versionName "1.2.0"
         buildConfigField "String", "SITE_URL", "\"${siteUrl}\""
         resValue "string", "site_host", siteHost
-        // ?app=android — сайт так узнаёт, что он внутри приложения (страница /widget).
-        resValue "string", "launch_url", "${siteUrl}/?app=android"
+        // ?app=android — сайт так узнаёт, что он внутри приложения (страница /widget);
+        // .push — что уведомления показывает само приложение (NotifyActivity), а не Chrome.
+        resValue "string", "launch_url", "${siteUrl}/?app=android.push"
     }
 
     signingConfigs {

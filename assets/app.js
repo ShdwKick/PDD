@@ -1567,7 +1567,7 @@ async function renderPrivacy() {
 /** Стереть прогресс на этом устройстве: всё «bh-pdd-*», кроме метки «запущено из приложения». */
 function wipeLocalProgress() {
   try {
-    for (const k of Object.keys(localStorage)) if (k.startsWith("bh-pdd-") && k !== APP_KEY) localStorage.removeItem(k);
+    for (const k of Object.keys(localStorage)) if (k.startsWith("bh-pdd-") && k !== APP_KEY && k !== APP_PUSH_KEY) localStorage.removeItem(k);
   } catch (e) { console.error("Не удалось стереть данные на устройстве:", e); }
 }
 
@@ -1611,12 +1611,19 @@ async function renderDeletion() {
    плюс нативный виджет. Сайт выдаёт ему ключ только для чтения огонька
    (/api/widget/token) и передаёт в приложение intent-ссылкой. Что мы внутри
    приложения — знаем по ?app=android в адресе запуска (android/…/AndroidManifest.xml)
-   или по referrer android-app:// (так TWA открывает первую страницу). */
+   или по referrer android-app:// (так TWA открывает первую страницу).
+   ?app=android.push — приложение с 1.2.0: уведомления показывает оно само
+   (NotifyActivity + AppNotifier), без Web Push и разрешений Chrome. */
 const ANDROID_PACKAGE = "ru.burninghouse.pdd";
 const APP_KEY = "bh-pdd-app";
+const APP_PUSH_KEY = "bh-pdd-app-push";
 (() => {
-  const fromApp = new URLSearchParams(location.search).get("app") === "android" || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE}`);
-  try { if (fromApp) localStorage.setItem(APP_KEY, "android"); } catch {}
+  const app = new URLSearchParams(location.search).get("app");
+  const fromApp = app === "android" || app === "android.push" || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE}`);
+  try {
+    if (fromApp) localStorage.setItem(APP_KEY, "android");
+    if (app === "android.push") localStorage.setItem(APP_PUSH_KEY, "1");
+  } catch {}
   // Метку запуска из адреса убираем: ссылку из приложения могут переслать.
   if (new URLSearchParams(location.search).has("app")) {
     const u = new URL(location.href); u.searchParams.delete("app");
@@ -1624,6 +1631,7 @@ const APP_KEY = "bh-pdd-app";
   }
 })();
 const inAndroidApp = () => { try { return localStorage.getItem(APP_KEY) === "android"; } catch { return false; } };
+const appPush = () => { try { return inAndroidApp() && localStorage.getItem(APP_PUSH_KEY) === "1"; } catch { return false; } };
 
 /* Подключение виджета одним нажатием (карточка на главной или страница /widget):
    ключ → в приложение intent-ссылкой → ConnectActivity сохраняет его и сразу
@@ -2811,10 +2819,46 @@ async function enablePush() {
   return true;
 }
 
+/* Уведомления через приложение (appPush): ключ виджета → в приложение
+   intent-ссылкой → NotifyActivity спрашивает разрешение Android и сообщает
+   серверу (через RefreshWorker). Окно Android поверх страницы её не скрывает,
+   поэтому ждём, пока сервер узнает (me.appNotify), опросом. Вызывать только
+   из обработчика нажатия: без жеста Chrome intent-ссылку не откроет. */
+const APP_PUSH_WAIT_MS = 60 * 1000;
+const APP_PUSH_POLL_MS = 3000;
+const APP_PUSH_FAIL = "Уведомления не включились — разрешите их для «Когда на права?» в настройках Android и нажмите «Включить» ещё раз.";
+async function enableAppPush() {
+  const { token } = await apiJson("/api/widget/token", { method: "POST", body: {} });
+  location.href = `intent://notify?token=${encodeURIComponent(token)}#Intent;scheme=pddwidget;package=${ANDROID_PACKAGE};end`;
+  for (const end = Date.now() + APP_PUSH_WAIT_MS; Date.now() < end;) {
+    await new Promise(r => setTimeout(r, APP_PUSH_POLL_MS));
+    try {
+      const r = await apiJson(`/api/me?tz=${encodeURIComponent(TZ)}`);
+      if (r.appNotify) { me.appNotify = true; return true; }
+    } catch (e) { console.error("Уведомления приложения: проверка не удалась:", e); }
+  }
+  return false;
+}
+/** В приложении уведомления теперь от него самого — подписку Chrome на этом
+ * телефоне снимаем, чтобы не приходило по два. */
+async function dropWebPushInApp() {
+  if (!pushSupported() || Notification.permission !== "granted") return;
+  const sub = await (await swReady())?.pushManager.getSubscription();
+  if (!sub) return;
+  await apiJson("/api/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } });
+  await sub.unsubscribe();
+}
+
 /** При старте у вошедшего: разрешение уже есть — тихо чиним подписку (новый
  * ключ, стёрта сервером), иначе предлагаем включить окном (maybeAskPush). */
 async function syncPushOnStart() {
-  if (!me || !pushSupported()) return;
+  if (!me) return;
+  if (appPush()) {
+    dropWebPushInApp().catch(e => console.error("Push: старую подписку не снять:", e));
+    if (!me.appNotify) setTimeout(maybeAskPush, 1500);
+    return;
+  }
+  if (!pushSupported()) return;
   if (Notification.permission === "granted") {
     const reg = await swReady();
     if (reg) ensurePush(reg).catch(e => console.error("Push: не удалось обновить подписку:", e));
@@ -2825,7 +2869,7 @@ async function syncPushOnStart() {
 
 /** Окно «Включить уведомления?» — раз в неделю, пока не включили и не запретили. */
 function maybeAskPush(tries = 3) {
-  if (!me || Notification.permission !== "default") return;
+  if (!me || (appPush() ? me.appNotify : Notification.permission !== "default")) return;
   // Открыто другое окно (аккаунт, праздник рубежа) — не перекрываем его, спросим чуть позже.
   if (document.querySelector(".acc-backdrop, .finish-overlay")) { if (tries > 0) setTimeout(() => maybeAskPush(tries - 1), 5000); return; }
   try { if (Number(localStorage.getItem(PUSH_ASK_KEY)) > Date.now()) return; } catch {}
@@ -2851,6 +2895,12 @@ function maybeAskPush(tries = 3) {
     const btn = back.querySelector("#pushAskYes");
     btn.disabled = true;
     try {
+      if (appPush()) {
+        if (await enableAppPush()) return close();
+        back.querySelector("#pushAskErr").textContent = APP_PUSH_FAIL;
+        btn.disabled = false;
+        return;
+      }
       if (await enablePush()) return close();
       snooze(); close(); // отказали в окне браузера — не пристаём неделю
     } catch (e) {
@@ -2869,6 +2919,7 @@ async function setupPushRow() {
     btn.classList.toggle("is-hidden", !label);
     if (label) { btn.textContent = label; btn.disabled = false; btn.onclick = fn; }
   };
+  if (appPush()) return setupAppPushRow(hint, btn, show);
   if (!pushSupported()) {
     return show(isIOS()
       ? "На iPhone уведомления работают, когда приложение установлено: «Поделиться» → «На экран „Домой“», потом откройте его оттуда."
@@ -2914,6 +2965,38 @@ async function setupPushRow() {
     return;
   }
   show("Толчки друзей и «огонёк гаснет» — в уведомления телефона или компьютера, даже когда сайт закрыт.", "Включить", enable);
+}
+
+/** Строка «Уведомления» в плане внутри приложения 1.2.0+: от самого приложения. */
+function setupAppPushRow(hint, btn, show) {
+  if (me?.appNotify) {
+    return show("Включены: толчки друзей и вечернее напоминание придут от приложения.", "Выключить", async () => {
+      btn.disabled = true;
+      try {
+        await apiJson("/api/push/app", { method: "DELETE" });
+        me.appNotify = false;
+      } catch (e) {
+        console.error("Уведомления приложения:", e);
+        hint.textContent = "Не получилось выключить — проверьте связь и попробуйте ещё раз.";
+        btn.disabled = false;
+        return;
+      }
+      setupPushRow();
+    });
+  }
+  show("Толчки друзей и «огонёк гаснет» — уведомлениями от приложения, даже когда оно закрыто.", "Включить", async () => {
+    btn.disabled = true;
+    hint.textContent = "Разрешите уведомления в окне Android…";
+    try {
+      if (!(await enableAppPush())) { hint.textContent = APP_PUSH_FAIL; btn.disabled = false; return; }
+    } catch (e) {
+      console.error("Уведомления приложения:", e);
+      hint.textContent = "Не получилось — проверьте связь и попробуйте ещё раз.";
+      btn.disabled = false;
+      return;
+    }
+    setupPushRow();
+  });
 }
 
 initAuth().catch(e => console.error("Вход недоступен:", e)).finally(() => { route(); showIncoming(); syncPushOnStart(); });

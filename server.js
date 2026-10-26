@@ -128,6 +128,8 @@ const plural = (n, one, few, many) => {
 const webpush = createWebPush({ dataDir: DATA_DIR, subject: process.env.VAPID_SUBJECT || SITE_URL });
 async function pushTo(userId, message) {
   const r = { devices: 0, sent: 0, gone: 0, errors: [] };
+  // Приложение на Android забирает то же самое само (GET /api/widget/notes).
+  try { if (store.addAppNote(userId, message)) r.devices++; } catch (e) { console.error("Уведомление для приложения не записано:", e.message); }
   for (const sub of store.pushSubs(userId)) {
     r.devices++;
     try {
@@ -408,8 +410,22 @@ async function handleApi(req, res, pathname) {
     return data ? json(res, 200, data) : json(res, 401, { error: "bad_widget_token" });
   }
 
+  // Уведомления через приложение: оно включает их на своём ключе и раз в
+  // ~15 минут забирает новые. Ключ тот же, что у виджета (только чтение).
+  if (pathname === "/api/widget/notify" && method === "POST") {
+    const m = /^Widget ([A-Za-z0-9_-]+)$/.exec(req.headers.authorization || "");
+    const r = m && store.setAppNotify(m[1], (await readJson(req))?.enabled === true);
+    return r ? json(res, 200, r) : json(res, 401, { error: "bad_widget_token" });
+  }
+  if (pathname === "/api/widget/notes" && method === "GET") {
+    const m = /^Widget ([A-Za-z0-9_-]+)$/.exec(req.headers.authorization || "");
+    const after = new URL(req.url, "http://localhost").searchParams.get("after");
+    const r = m && store.appNotes(m[1], after === null ? undefined : Number(after));
+    return r ? json(res, 200, r) : json(res, 401, { error: "bad_widget_token" });
+  }
+
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe", "/api/push/app"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -418,7 +434,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === "/api/me" && method === "GET") {
     const tz = new URL(req.url, "http://localhost").searchParams.get("tz");
-    return json(res, 200, { user: { id: user.id, name: user.name || user.username }, ...store.me(user.id, tz) });
+    return json(res, 200, { user: { id: user.id, name: user.name || user.username }, ...store.me(user.id, tz), appNotify: store.appNotifyOn(user.id) });
   }
   if (pathname === "/api/me/daily" && method === "GET") {
     return json(res, 200, { question: store.dailyQuestion(user.id) });
@@ -590,6 +606,12 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === "/api/push/subscribe" && method === "POST") {
     return store.addPushSub(user.id, (await readJson(req)).subscription) ? json(res, 200, { ok: true }) : json(res, 400, { error: "bad_subscription" });
+  }
+  // «Выключить» уведомления приложения с сайта — на всех телефонах; приложение
+  // узнает об этом при следующем заходе за уведомлениями.
+  if (pathname === "/api/push/app" && method === "DELETE") {
+    store.disableAppNotify(user.id);
+    return json(res, 200, { ok: true });
   }
   if (pathname === "/api/push/unsubscribe" && method === "POST") {
     store.removePushSub(user.id, (await readJson(req)).endpoint);
