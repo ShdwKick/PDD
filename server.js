@@ -129,7 +129,7 @@ const webpush = createWebPush({ dataDir: DATA_DIR, subject: process.env.VAPID_SU
 async function pushTo(userId, message) {
   const r = { devices: 0, sent: 0, gone: 0, errors: [] };
   // Приложение на Android забирает то же самое само (GET /api/widget/notes).
-  try { if (store.addAppNote(userId, message)) r.devices++; } catch (e) { console.error("Уведомление для приложения не записано:", e.message); }
+  try { if (store.addAppNote(userId, message)) { r.devices++; r.app = true; } } catch (e) { console.error("Уведомление для приложения не записано:", e.message); }
   for (const sub of store.pushSubs(userId)) {
     r.devices++;
     try {
@@ -432,7 +432,7 @@ async function handleApi(req, res, pathname) {
   }
 
   // Всё ниже — только для вошедших.
-  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe", "/api/push/app"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
+  if (!pathname.startsWith("/api/me") && !pathname.startsWith("/api/friends") && !pathname.startsWith("/api/pair") && !["/api/widget/token", "/api/answers", "/api/answers/batch", "/api/import-guest", "/api/exams", "/api/push/subscribe", "/api/push/unsubscribe", "/api/push/app", "/api/push/test"].includes(pathname) && !/^\/api\/tickets\/\d{1,2}\/finish$/.test(pathname)) {
     return json(res, 404, { error: "not_found" });
   }
   if (!auth) return json(res, 503, { error: "auth_unavailable" });
@@ -619,6 +619,16 @@ async function handleApi(req, res, pathname) {
   if (pathname === "/api/push/app" && method === "DELETE") {
     store.disableAppNotify(user.id);
     return json(res, 200, { ok: true });
+  }
+  // «Проверить» на /plan: тестовое на все устройства человека (браузеры и
+  // приложение) и честный итог — дошло ли до push-сервиса, какая ошибка.
+  if (pathname === "/api/push/test" && method === "POST") {
+    const r = await pushTo(user.id, {
+      title: "Уведомления работают",
+      body: "Сюда придут толчки друзей и вечернее «огонёк гаснет».",
+      url: PUBLIC_URL + "/", tag: "pdd-test",
+    });
+    return json(res, 200, { devices: r.devices, sent: r.sent, gone: r.gone, app: !!r.app, error: r.errors[0] || null });
   }
   if (pathname === "/api/push/unsubscribe" && method === "POST") {
     store.removePushSub(user.id, (await readJson(req)).endpoint);

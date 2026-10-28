@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
  * приложения открывает pddwidget://notify?token=… (ключ тот же, что у
  * виджета). Спрашиваем разрешение Android — только для нашего приложения, без
  * уведомлений Chrome, — и дальше RefreshWorker сам забирает их с сервера.
+ * pddwidget://check — забрать новые прямо сейчас (кнопка «Проверить»).
  */
 public final class NotifyActivity extends Activity {
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
@@ -27,6 +28,12 @@ public final class NotifyActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         Uri data = getIntent().getData();
+        if (data != null && "check".equals(data.getHost())) {
+            // «Проверить» на сайте: тестовое уже на сервере — забрать сразу, не ждать ~15 минут.
+            RefreshWorker.refreshNow(this);
+            finish();
+            return;
+        }
         String token = data == null ? null : data.getQueryParameter("token");
         if (token == null || !TOKEN.matcher(token).matches()) {
             Toast.makeText(this, R.string.notify_bad, Toast.LENGTH_LONG).show();

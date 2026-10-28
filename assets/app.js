@@ -1613,16 +1613,18 @@ async function renderDeletion() {
    приложения — знаем по ?app=android в адресе запуска (android/…/AndroidManifest.xml)
    или по referrer android-app:// (так TWA открывает первую страницу).
    ?app=android.push — приложение с 1.2.0: уведомления показывает оно само
-   (NotifyActivity + AppNotifier), без Web Push и разрешений Chrome. */
+   (NotifyActivity + AppNotifier), без Web Push и разрешений Chrome;
+   ?app=android.push2 — с 1.2.2: ещё умеет забрать их сразу (pddwidget://check). */
 const ANDROID_PACKAGE = "ru.burninghouse.pdd";
 const APP_KEY = "bh-pdd-app";
 const APP_PUSH_KEY = "bh-pdd-app-push";
 (() => {
   const app = new URLSearchParams(location.search).get("app");
-  const fromApp = app === "android" || app === "android.push" || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE}`);
+  const fromApp = app === "android" || app === "android.push" || app === "android.push2" || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE}`);
   try {
     if (fromApp) localStorage.setItem(APP_KEY, "android");
     if (app === "android.push") localStorage.setItem(APP_PUSH_KEY, "1");
+    if (app === "android.push2") localStorage.setItem(APP_PUSH_KEY, "2");
   } catch {}
   // Метку запуска из адреса убираем: ссылку из приложения могут переслать.
   if (new URLSearchParams(location.search).has("app")) {
@@ -1631,7 +1633,8 @@ const APP_PUSH_KEY = "bh-pdd-app-push";
   }
 })();
 const inAndroidApp = () => { try { return localStorage.getItem(APP_KEY) === "android"; } catch { return false; } };
-const appPush = () => { try { return inAndroidApp() && localStorage.getItem(APP_PUSH_KEY) === "1"; } catch { return false; } };
+const appPushLevel = () => { try { return inAndroidApp() ? Number(localStorage.getItem(APP_PUSH_KEY)) || 0 : 0; } catch { return 0; } };
+const appPush = () => appPushLevel() >= 1;
 
 /* Подключение виджета одним нажатием (карточка на главной или страница /widget):
    ключ → в приложение intent-ссылкой → ConnectActivity сохраняет его и сразу
@@ -2670,7 +2673,7 @@ async function renderPlan() {
         </select></label>
       <div class="plan-opt remind" id="pushRow">
         <span class="po-body"><b>Уведомления на это устройство</b><span id="pushHint">Проверяю…</span></span>
-        <button type="button" class="btn-mini is-hidden" id="pushBtn"></button>
+        <span class="push-btns"><button type="button" class="btn-mini ghost is-hidden" id="pushTest">Проверить</button><button type="button" class="btn-mini is-hidden" id="pushBtn"></button></span>
       </div>` : ""}
       <p class="plan-note">${me
         ? "План меняется с сегодняшнего дня — прошлые дни не пересчитываются, огонёк не пострадает."
@@ -2911,13 +2914,43 @@ function maybeAskPush(tries = 3) {
   });
 }
 
+/** «Проверить»: тестовое уведомление на все устройства и понятный итог. */
+async function testPush(hint, test) {
+  test.disabled = true;
+  try {
+    const r = await apiJson("/api/push/test", { method: "POST", body: {} });
+    if (r.app) {
+      if (appPushLevel() >= 2) {
+        // Приложение заберёт сразу, не дожидаясь своей проверки раз в ~15 минут.
+        location.href = `intent://check#Intent;scheme=pddwidget;package=${ANDROID_PACKAGE};end`;
+        hint.textContent = "Отправили — уведомление от приложения появится через несколько секунд. Нет? Проверьте, что уведомления «Когда на права?» включены в настройках телефона.";
+      } else {
+        hint.textContent = "Отправили — приложение покажет уведомление в течение ~15 минут (обновите приложение, чтобы приходило сразу).";
+      }
+    } else {
+      const where = inAndroidApp() ? "приложения" : "браузера";
+      hint.textContent = r.sent
+        ? `Отправили — уведомление должно появиться через пару секунд. Нет? Проверьте, что уведомления ${where} включены в настройках телефона.`
+        : r.gone ? "Подписка устарела — нажмите «Выключить» и включите снова."
+        : r.error ? `Служба уведомлений ответила ошибкой: ${r.error}`
+        : "На сервере нет подписки этого устройства — нажмите «Выключить» и включите снова.";
+    }
+  } catch (e) {
+    console.error("Push test:", e);
+    hint.textContent = "Не получилось проверить — нет связи.";
+  }
+  test.disabled = false;
+}
+
 async function setupPushRow() {
-  const hint = $("pushHint"), btn = $("pushBtn");
+  const hint = $("pushHint"), btn = $("pushBtn"), test = $("pushTest");
   if (!hint) return;
-  const show = (text, label, fn) => {
+  const show = (text, label, fn, withTest = false) => {
     hint.textContent = text;
     btn.classList.toggle("is-hidden", !label);
+    test.classList.toggle("is-hidden", !withTest);
     if (label) { btn.textContent = label; btn.disabled = false; btn.onclick = fn; }
+    test.onclick = () => testPush(hint, test);
   };
   if (appPush()) return setupAppPushRow(hint, btn, show);
   if (!pushSupported()) {
@@ -2961,7 +2994,7 @@ async function setupPushRow() {
         await sub.unsubscribe().catch(() => {});
       }
       setupPushRow();
-    });
+    }, true);
     return;
   }
   show("Толчки друзей и «огонёк гаснет» — в уведомления телефона или компьютера, даже когда сайт закрыт.", "Включить", enable);
@@ -2982,7 +3015,7 @@ function setupAppPushRow(hint, btn, show) {
         return;
       }
       setupPushRow();
-    });
+    }, true);
   }
   show("Толчки друзей и «огонёк гаснет» — уведомлениями от приложения, даже когда оно закрыто.", "Включить", async () => {
     btn.disabled = true;
