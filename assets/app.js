@@ -528,7 +528,7 @@ const carSvg = prefix => $("car").querySelector("svg").outerHTML
  * поля номера (без флага), чтобы 8 символов влезали. */
 const PLATE_FIELD = 28;   // ширина поля номера без флага, в единицах SVG машины
 const PLATE_FONT = 6;     // как .plate-text в styles.css
-const isEmojiChar = ch => /p{Extended_Pictographic}|p{Regional_Indicator}/u.test(ch);
+const isEmojiChar = ch => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(ch);
 function setPlateText(el, text) {
   const t = el.querySelector(".plate-text");
   if (!t) return;
