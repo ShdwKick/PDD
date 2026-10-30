@@ -15,7 +15,7 @@
      сети и так уходят в очередь (outbox в app.js).
    Навигация без сети — закэшированный index.html, путь разберёт роутер. */
 
-const CACHE = "pdd-v51";
+const CACHE = "pdd-v52";
 const SHELL = [
   "/", "/assets/styles.css", "/assets/brand.css", "/assets/app.js", "/assets/progress.js", "/assets/motivation.js", "/assets/pages.js",
   "/assets/auth-client.js", "/assets/favicon.svg", "/manifest.webmanifest",
@@ -23,8 +23,10 @@ const SHELL = [
 ];
 const CACHEABLE_API = /^\/api\/(tickets\/\d+|topics(\/\d+)?|config)$/;
 
+// cache: "reload" — мимо HTTP-кэша браузера: там файлы живут до 5 минут
+// (max-age=300), и новая версия иначе могла сохранить себе старый app.js.
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(url => new Request(url, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(
