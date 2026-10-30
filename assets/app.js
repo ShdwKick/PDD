@@ -116,6 +116,8 @@ const currentFacts = cfg => (me && me.facts) || guestFacts(cfg.unique);
 
 function setMe(next) {
   me = next;
+  // Позже, а не сразу: setMe зовут и при загрузке модуля, когда pair ещё не объявлен.
+  queueMicrotask(updateCarLead);
   // Последний известный /api/me — чтобы без сети вошедший видел свой
   // огонёк, а не пустой гостевой.
   try { next ? localStorage.setItem(ME_CACHE, JSON.stringify(next)) : localStorage.removeItem(ME_CACHE); } catch {}
@@ -1047,7 +1049,22 @@ function renderPairCar() {
     $("car").after(el);
   }
   applyCar(el, pair.partner.car);
+  updateCarLead();
 }
+
+/* Гонка с напарником: кто сегодня решил больше — тот чуть впереди. Разница
+   в LEAD_FULL вопросов (билет) — уже предел: дальше машина не уезжает. */
+const LEAD_FULL = 20;
+function updateCarLead() {
+  const theirs = pair?.status === "active" ? pair.partner.todayCount ?? 0 : null;
+  const lead = theirs === null ? 0 : Math.max(-1, Math.min(1, ((me?.streak?.todayCount || 0) - theirs) / LEAD_FULL));
+  $("car")?.style.setProperty("--ahead", Math.max(0, lead).toFixed(3));
+  $("car2")?.style.setProperty("--ahead", Math.max(0, -lead).toFixed(3));
+}
+// Напарник тоже решает — подтягиваем его счёт, когда вкладку открыли снова и раз в 5 минут.
+const PAIR_REFRESH_MS = 5 * 60 * 1000;
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pair?.status === "active") loadPair(); });
+setInterval(() => { if (document.visibilityState === "visible" && pair?.status === "active") loadPair(); }, PAIR_REFRESH_MS);
 
 /** Запрос к /api/pair…: ответ с pair обновляет состояние, без него (выход,
  * отказ) пара пропадает. Ошибка — в строке статуса. true — успех. */

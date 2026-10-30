@@ -620,6 +620,11 @@ a{color:inherit}
 
 .car{position:fixed;z-index:0;bottom:30px;left:calc(50% + 129px);width:118px;transform:translateX(-50%);pointer-events:none}
 .car.car2{left:calc(50% - 129px)}
+/* Кто сегодня решил больше вопросов — чуть впереди (updateCarLead в app.js):
+   выше и меньше — дальше по дороге. --ahead 0..1, 1 — предел. */
+#car,#car2{transform:translateX(-50%) translateY(calc(var(--ahead,0) * -34px)) scale(calc(1 - var(--ahead,0) * .16));
+  transform-origin:50% 100%;transition:transform 1.4s cubic-bezier(.3,.6,.3,1)}
+@media (prefers-reduced-motion: reduce){ #car,#car2{transition:none} }
 .car.car2 svg{animation:none!important}
 .car svg{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 100%}
 .car .car-shadow{fill:#000;opacity:.35}
