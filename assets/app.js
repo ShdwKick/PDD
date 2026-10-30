@@ -1368,7 +1368,8 @@ const roadPos = rd => rd.next ? Math.max(0, rd.reached - 1 + rd.next.progress) /
 function sideCarSvg() {
   // Та же машина, что на дороге и в гараже, только сбоку: те же цвета и
   // детали (полоса света на крыше и под стёклами, большие стопы, тёмные колёса,
-  // спойлер в тёмном оттенке кузова, полосы, огонь из выхлопа, мягкая подсветка).
+  // спойлер в тёмном оттенке кузова, огонь из выхлопа, мягкая подсветка). Полос сбоку
+  // нет: они идут по центру кузова, сбоку их не видно.
   // Едет вправо: багажник слева. Градиент подсветки — один на страницу.
   return `<svg viewBox="-4 0 146 62" aria-hidden="true">
     <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient>
@@ -1389,7 +1390,6 @@ function sideCarSvg() {
     <path class="bumper" d="M10 39 L16 39 L16 46 L13 46 Q10 46 10 43 Z"/>
     <path class="bumper" d="M131 39 L138 39 L138 43 Q138 46 135 46 L131 46 Z"/>
     <rect class="bumper" x="41" y="43.8" width="63" height="2.4" rx="1"/>
-    <g class="part p-stripes"><path d="M14 28.7 L30 27.7 L45 13.7 Q48 11.7 53 11.7 L80 11.7 Q85 11.7 89 14.2 L104 26.7 L134 29.4" style="fill:none;stroke:var(--stripe,#f4f6f8);stroke-width:2.6;opacity:.92"/></g>
     <g class="part p-spoiler"><rect class="sp-leg" x="13" y="23.5" width="3" height="5"/><rect class="sp-leg" x="21" y="23.5" width="3" height="4.2"/><path class="sp-wing" d="M7 20.5 L27 20.5 L26 23.8 L8.5 23.8 Z"/></g>
     <circle cx="30" cy="46" r="11.5" style="fill:#0b0e13"/><circle cx="116" cy="46" r="11.5" style="fill:#0b0e13"/>
     <circle class="tyre" cx="30" cy="46" r="9.5"/><circle cx="30" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="30" cy="46" r="1.6" style="fill:#4a525d"/>
