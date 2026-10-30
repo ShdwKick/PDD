@@ -266,7 +266,7 @@ const ago = k => addDays(today, -k);
   const s = fresh();
   withDays(s, "g", { [ago(3)]: 20, [ago(2)]: 20, [ago(1)]: 20 });
   const m = s.me("g", TZ);
-  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none", plate: "" });
+  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "" });
   eq("открытый белый кузов — можно", s.setCar("g", { paint: "white" }), { car: { paint: "white" } });
   eq("красный (30 дней) — ещё закрыт", s.setCar("g", { paint: "red" }), null);
   eq("мусор — нет", s.setCar("g", { paint: "pink" }), null);
@@ -277,9 +277,20 @@ const ago = k => addDays(today, -k);
   eq("номер длиннее 8 символов — нет", s.setCar("g", { plate: "123456789" }), null);
   eq("номер со спецсимволами — нет", s.setCar("g", { plate: "<b>hi" }), null);
   eq("друзья видят машину такой, какой её выбрал хозяин", s.friendsFeed("v", ["g"]).g.car,
-    { paint: "white", stripes: "none", spoiler: "none", glow: "none", exhaust: "none", plate: "АНЕ 77" });
+    { paint: "white", stripes: "none", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "АНЕ 77" });
   const s2 = fresh();
   eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
+
+  // Детали за значки: «У» — за первый решённый билет, плавник — за 10 билетов 20/20.
+  eq("знак «У» без решённого билета — закрыт", s.setCar("g", { sign: "u" }), null);
+  const t1 = Object.fromEntries(bank.filter(q => q.ticket === 1).map(q => [q.num, q.correct]));
+  s.finishTicket("g", 1, t1, { rid: "ticket-rid-g001" });
+  eq("решил билет — знак «У» можно", s.setCar("g", { sign: "u" })?.car.sign, "u");
+  eq("и такси без 1000 ответов — нельзя", s.setCar("g", { roof: "taxi" }), null);
+  eq("значковая деталь сама не надевается", M.carConfig(null, 100).roof, "none");
+  eq("чужая машина: значковую деталь показываем, как выбрал хозяин", M.carConfig({ roof: "taxi" }, 0).roof, "taxi");
+  eq("при выборе — только с полученным значком", [M.validCar({ roof: "taxi" }, 0, new Set(["q1000"])), M.validCar({ roof: "taxi" }, 0, new Set())], [{ roof: "taxi" }, null]);
+  eq("свой показ: значка нет — выбранное не надевается", M.carConfig({ roof: "taxi" }, 0, new Set()).roof, "none");
 }
 
 { // удаление данных: по просьбе человека и за удалёнными в Auth аккаунтами

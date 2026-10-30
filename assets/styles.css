@@ -869,7 +869,12 @@ a.lamp:hover{filter:brightness(1.1)}
 .car.car-stripes-white .p-stripes,.car.car-stripes-black .p-stripes,.car.car-stripes-red .p-stripes,.car.car-stripes-gold .p-stripes,
 .car.car-spoiler-on .p-spoiler,
 .car.car-glow-blue .p-glow,.car.car-glow-red .p-glow,.car.car-glow-purple .p-glow,
-.car.car-exhaust-fire .p-fire{display:inline}
+.car.car-exhaust-fire .p-fire,
+.car.car-glow-green .p-glow,.car.car-sign-u .p-sign-u,.car.car-sign-beginner .p-sign-beginner,.car.car-glass-tint .p-tint,
+.car.car-lights-led .p-led,.car.car-trim-chrome .p-chrome,.car.car-rear-diffuser .p-diffuser,.car.car-decal-race .p-race,
+.car.car-roof-fin .p-fin,.car.car-roof-taxi .p-taxi{display:inline}
+.badge-cell .bs-car{color:var(--warn)}
+.car .sign-text{fill:#111;font-family:Arial,sans-serif;font-weight:900;text-anchor:middle}
 .car .p-stripes rect{fill:var(--stripe,#f4f6f8);opacity:.92}
 .car.car-stripes-black{--stripe:#111418}
 .car.car-stripes-red{--stripe:#e0241b}
@@ -878,6 +883,7 @@ a.lamp:hover{filter:brightness(1.1)}
 .car .sp-leg{fill:#171b22}
 .car.car-glow-red{--glow:#ff3b30}
 .car.car-glow-purple{--glow:#b43cff}
+.car.car-glow-green{--glow:#22e07a}
 .car .p-glow{animation:glow-pulse 2.4s ease-in-out infinite alternate}
 .car:not(.car-glow-none) .car-shadow{opacity:.12}
 @keyframes glow-pulse{from{opacity:.55}to{opacity:1}}

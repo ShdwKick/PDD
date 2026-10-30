@@ -56,6 +56,10 @@
         <stop offset=".82" stop-color="var(--car-body)"/>
         <stop offset="1" stop-color="var(--car-dark)"/>
       </linearGradient>
+      <!-- Детали за значки: хром, тонировка-хамелеон, свечение LED-полосы. -->
+      <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f8fb"/><stop offset=".5" stop-color="#9aa6b2"/><stop offset="1" stop-color="#e3e8ee"/></linearGradient>
+      <linearGradient id="tint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b2a6b"/><stop offset=".55" stop-color="#14304f"/><stop offset="1" stop-color="#0d5a5a"/></linearGradient>
+      <linearGradient id="ledGlow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff3b30" stop-opacity="0"/><stop offset=".5" stop-color="#ff3b30" stop-opacity=".55"/><stop offset="1" stop-color="#ff3b30" stop-opacity="0"/></linearGradient>
       <radialGradient id="underGlow">
         <stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/>
         <stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/>
@@ -71,6 +75,14 @@
     <path class="body" fill="url(#carBody)" d="M36 81 L46 56 Q48 52 54 52 L106 52 Q112 52 114 56 L124 81 Z"/>
     <path class="glass" d="M44 79 L52 59 Q53.4 57 56 57 L104 57 Q106.6 57 108 59 L116 79 Z"/>
     <path class="glint" d="M60 57 L74 57 L62 79 L48 79 Z"/>
+    <g class="part p-tint"><path fill="url(#tint)" d="M44 79 L52 59 Q53.4 57 56 57 L104 57 Q106.6 57 108 59 L116 79 Z"/><path fill="#fff" opacity=".18" d="M60 57 L74 57 L62 79 L48 79 Z"/></g>
+    <!-- Знаки «У» / «!» — в правом нижнем углу заднего стекла. -->
+    <g class="part p-sign-u"><path d="M100 61.5 L108.5 76.5 L91.5 76.5 Z" fill="#fff" stroke="#e0241b" stroke-width="1.8" stroke-linejoin="round"/><text class="sign-text" x="100" y="75" font-size="7.5">У</text></g>
+    <g class="part p-sign-beginner"><rect x="93" y="64" width="13" height="13" rx="1" fill="#f5c400" stroke="#111" stroke-width=".6"/><text class="sign-text" x="99.5" y="75" font-size="11">!</text></g>
+    <g class="part p-fin"><path fill="var(--car-dark)" d="M74.5 47.5 Q75.5 35.5 80 35 Q84.5 35.5 85.5 47.5 Z"/><path fill="var(--car-light)" opacity=".55" d="M77.5 46 Q78 38 80 37.5 L80 46 Z"/></g>
+    <g class="part p-taxi"><rect x="77" y="45" width="6" height="3" fill="#2a2f37"/><rect x="63" y="36" width="34" height="10" rx="2" fill="#f5c400"/>
+      <g fill="#111"><rect x="63" y="42" width="3.4" height="2"/><rect x="69.8" y="42" width="3.4" height="2"/><rect x="76.6" y="42" width="3.4" height="2"/><rect x="83.4" y="42" width="3.4" height="2"/><rect x="90.2" y="42" width="3.4" height="2"/><rect x="66.4" y="44" width="3.4" height="2"/><rect x="73.2" y="44" width="3.4" height="2"/><rect x="80" y="44" width="3.4" height="2"/><rect x="86.8" y="44" width="3.4" height="2"/><rect x="93.6" y="44" width="3.4" height="2"/></g>
+      <text class="sign-text" x="80" y="41.2" font-size="5">ТАКСИ</text></g>
     <path class="mirror" d="M31 77 L19 75 Q14.5 75 15 79.5 L16.5 83 L33 83 Z"/>
     <path class="mirror" d="M129 77 L141 75 Q145.5 75 145 79.5 L143.5 83 L127 83 Z"/>
     <path class="light" d="M28 87 L132 87 L125 80 L35 80 Z"/>
@@ -99,6 +111,13 @@
       <path class="exhaust" d="M32 135 Q27 141 32 150 Q37 141 32 135 Z"/>
       <path class="exhaust" d="M128 135 Q123 141 128 150 Q133 141 128 135 Z"/>
     </g>
+    <g class="part p-led"><rect x="38" y="91" width="84" height="8" fill="url(#ledGlow)"/><rect x="43" y="94" width="74" height="2.2" rx="1.1" fill="#ff5147"/></g>
+    <g class="part p-chrome"><path d="M14 108 L146 108" stroke="url(#chrome)" stroke-width="1.8"/><rect x="59" y="104" width="42" height="15" rx="2.5" fill="none" stroke="url(#chrome)" stroke-width="1.8"/><path d="M36 86.5 L124 86.5" stroke="url(#chrome)" stroke-width="1.4"/></g>
+    <g class="part p-diffuser"><path fill="#0a0d11" d="M52 135 L108 135 L104 128 L56 128 Z"/><path stroke="#2c333c" stroke-width="1.2" d="M66 128.5 V135 M75 128.5 V135 M85 128.5 V135 M94 128.5 V135"/>
+      <ellipse cx="27" cy="131" rx="3.6" ry="2.6" fill="#15191e" stroke="url(#chrome)" stroke-width="1.3"/><ellipse cx="36" cy="131" rx="3.6" ry="2.6" fill="#15191e" stroke="url(#chrome)" stroke-width="1.3"/>
+      <ellipse cx="124" cy="131" rx="3.6" ry="2.6" fill="#15191e" stroke="url(#chrome)" stroke-width="1.3"/><ellipse cx="133" cy="131" rx="3.6" ry="2.6" fill="#15191e" stroke="url(#chrome)" stroke-width="1.3"/></g>
+    <g class="part p-race"><circle cx="126" cy="114" r="7" fill="#fff" stroke="#111" stroke-width="1"/><text class="sign-text" x="126" y="117" font-size="8.5">7</text>
+      <rect x="22" y="110" width="20" height="8" fill="#fff"/><g fill="#111"><rect x="22" y="110" width="4" height="4"/><rect x="30" y="110" width="4" height="4"/><rect x="38" y="110" width="4" height="4"/><rect x="26" y="114" width="4" height="4"/><rect x="34" y="114" width="4" height="4"/></g></g>
   </svg>
 </div>
 

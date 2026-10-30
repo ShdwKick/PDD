@@ -1355,8 +1355,9 @@ function sideCarSvg() {
   // детали (полоса света на крыше и под стёклами, большие стопы, тёмные колёса,
   // спойлер в тёмном оттенке кузова, полосы, огонь из выхлопа, мягкая подсветка).
   // Едет вправо: багажник слева. Градиент подсветки — один на страницу.
-  return `<svg viewBox="-4 4 146 58" aria-hidden="true">
-    <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient></defs>
+  return `<svg viewBox="-4 0 146 62" aria-hidden="true">
+    <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient>
+      <linearGradient id="sideChrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f8fb"/><stop offset=".5" stop-color="#9aa6b2"/><stop offset="1" stop-color="#e3e8ee"/></linearGradient><linearGradient id="sideTint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b2a6b"/><stop offset=".55" stop-color="#14304f"/><stop offset="1" stop-color="#0d5a5a"/></linearGradient></defs>
     <ellipse class="part p-glow" cx="74" cy="54" rx="68" ry="7" fill="url(#sideGlow)"/>
     <ellipse class="car-shadow" cx="74" cy="54.6" rx="60" ry="2.6"/>
     <g class="part p-fire"><path class="exhaust" d="M11 42 Q4 40 -3 42.7 Q4 45.5 11 43.7 Z"/></g>
@@ -1378,6 +1379,14 @@ function sideCarSvg() {
     <circle cx="30" cy="46" r="11.5" style="fill:#0b0e13"/><circle cx="116" cy="46" r="11.5" style="fill:#0b0e13"/>
     <circle class="tyre" cx="30" cy="46" r="9.5"/><circle cx="30" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="30" cy="46" r="1.6" style="fill:#4a525d"/>
     <circle class="tyre" cx="116" cy="46" r="9.5"/><circle cx="116" cy="46" r="4.6" style="fill:#2b323c"/><circle cx="116" cy="46" r="1.6" style="fill:#4a525d"/>
+      <!-- Детали за значки, что видно сбоку: знаки на заднем стекле и
+         диффузор сзади отсюда не видны; плавник — в конце крыши, острым к корме,
+         короб шашечек стоит поперёк — виден торцом. -->
+    <g class="part p-tint"><path fill="url(#sideTint)" d="M35 26.5 L47 15.2 Q49 15 52 15 L65 15 L65 26.5 Z"/><path fill="url(#sideTint)" d="M68 15 L80 15 Q84.5 15 87.5 17 L99 26.5 L68 26.5 Z"/><path fill="#fff" opacity=".18" d="M51 15 L57 15 L47 26.5 L41 26.5 Z"/></g>
+    <g class="part p-chrome"><path d="M35 26.8 L99 26.8" stroke="url(#sideChrome)" stroke-width="1.4"/><path d="M47 15 L88 15" stroke="url(#sideChrome)" stroke-width=".9"/></g>
+    <g class="part p-race"><circle cx="84" cy="37" r="5.2" fill="#fff" stroke="#111" stroke-width=".7"/><text class="sign-text" x="84" y="39.3" font-size="6.4">7</text></g>
+    <g class="part p-fin"><path fill="var(--car-dark)" d="M63.5 11.6 Q60 8.4 56 6.4 Q55 6.1 54.9 7.2 L54.6 11.6 Z"/></g>
+    <g class="part p-taxi"><rect x="64" y="9.6" width="3" height="2.2" fill="#3a414b"/><rect x="62.2" y="3.8" width="6.6" height="6.2" rx="1" fill="#f5c400"/><rect x="62.2" y="8" width="6.6" height="1.1" fill="#111"/></g>
   </svg>`;
 }
 
@@ -1839,7 +1848,7 @@ async function renderBadges() {
     </div>
     <h2 class="section-title">Значки</h2>
     <ul class="badge-grid">
-      ${all.map(b => `<li class="badge-cell ${b.got ? "got" : ""}">${medal(b)}<b>${esc(b.title)}</b><span>${esc(b.desc)}</span>${b.got ? "" : `<i class="bs-bar" style="--p:${(b.progress * 100).toFixed(0)}%"></i>`}</li>`).join("")}
+      ${all.map(b => `<li class="badge-cell ${b.got ? "got" : ""}">${medal(b)}<b>${esc(b.title)}</b><span>${esc(b.desc)}</span>${M.unlocksByBadge(b.id).length ? `<span class="bs-car">в гараже — ${esc(M.unlocksByBadge(b.id).join(", "))}</span>` : ""}${b.got ? "" : `<i class="bs-bar" style="--p:${(b.progress * 100).toFixed(0)}%"></i>`}</li>`).join("")}
     </ul>
     <h2 class="section-title with-link">Рубежи огонька<a href="/garazh" data-link>В гараж</a></h2>
     <p class="tuning-note">Рубеж меняет огонёк — он держится, пока горит серия. А ещё открывает в гараже цвета и детали для машины: они остаются навсегда, и что из них надеть, вы выбираете сами.</p>
@@ -1858,7 +1867,7 @@ const lockIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11"
 const SWATCH = {
   paint: { blue: "#2f6fd6", white: "#e9edf2", black: "#1c2026", green: "#0f8a5f", red: "#d42a20", silver: "#aab4bf", gold: "#d9a900" },
   stripes: { none: null, white: "#f4f6f8", black: "#111418", red: "#e0241b", gold: "#f2cf4a" },
-  glow: { none: null, blue: "#3aa0ff", red: "#ff3b30", purple: "#b43cff" },
+  glow: { none: null, blue: "#3aa0ff", red: "#ff3b30", purple: "#b43cff", green: "#22e07a" },
 };
 
 async function renderGarage() {
@@ -1869,8 +1878,11 @@ async function renderGarage() {
   const st = currentStreak(cfg);
   setDrive(st);
   const best = st.best || 0;
+  const got = M.gotBadges(currentFacts(cfg));
+  const isOpen = it => M.isOpen(it, best, got);
+  const badgeTitle = id => M.BADGES.find(b => b.id === id)?.title || id;
   const total = M.CAR.reduce((a, c) => a + c.items.length, 0);
-  const open = M.CAR.reduce((a, c) => a + c.items.filter(it => best >= it.at).length, 0);
+  const open = M.CAR.reduce((a, c) => a + c.items.filter(isOpen).length, 0);
   const preview = carSvg("g");
 
   view.innerHTML = `
@@ -1881,7 +1893,7 @@ async function renderGarage() {
     <div class="garage-stage">
       <div class="car garage-car" id="gCar">${preview}</div>
     </div>
-    <p class="tuning-note garage-note">Цвета и детали открываются рубежами огонька и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
+    <p class="tuning-note garage-note">Цвета и детали открываются рубежами огонька и значками и остаются навсегда. Выберите, что нравится, — машина на дороге поменяется сразу.</p>
     <h2 class="section-title">Номер</h2>
     <div class="g-plate">
       <label class="g-plate-field ${best < M.PLATE_AT ? "locked" : ""}">
@@ -1897,13 +1909,15 @@ async function renderGarage() {
       <h2 class="section-title">${esc(c.name)}</h2>
       <div class="garage-opts" data-cat="${c.id}">
         ${c.items.map(it => {
-          const locked = best < it.at;
+          const locked = !isOpen(it);
           const sw = SWATCH[c.id]?.[it.id];
+          // За значок — его название, за огонёк — сколько дней подряд.
+          const need = it.badge ? `значок «${badgeTitle(it.badge)}»` : `${it.at} ${daysWord(it.at)}`;
           return `<button type="button" class="g-opt" data-cat="${c.id}" data-id="${it.id}" ${locked ? "disabled" : ""}
-            aria-label="${esc(it.name)}${locked ? `, откроется за ${it.at} ${daysWord(it.at)} подряд` : ""}">
+            aria-label="${esc(it.name)}${locked ? `, откроется: ${esc(need)}${it.badge ? "" : " подряд"}` : ""}">
             ${sw !== undefined ? `<i class="g-swatch ${sw ? "" : "none"}" style="${sw ? `--sw:${sw}` : ""}"></i>` : ""}
             <span class="g-name">${esc(it.name)}</span>
-            ${locked ? `<span class="g-lock">${lockIcon}${it.at} ${daysWord(it.at)}</span>` : ""}
+            ${locked ? `<span class="g-lock">${lockIcon}${esc(need)}</span>` : ""}
           </button>`;
         }).join("")}
       </div>`).join("")}

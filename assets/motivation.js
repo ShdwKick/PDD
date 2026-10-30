@@ -156,8 +156,10 @@
   ];
 
   /* Гараж: категории и варианты. at — с какой лучшей серии открывается;
-     первый вариант каждой категории — «как с завода». Цвета — в styles.css
-     (классы car-<категория>-<вариант>). */
+     badge — за какой значок (id из BADGES): детали не только за огонёк, но и
+     за билеты, экзамены, ночные занятия. Первый вариант каждой категории —
+     «как с завода». Цвета — в styles.css (классы car-<категория>-<вариант>).
+     Видно только то, что видно сзади и сбоку: других ракурсов у машины нет. */
   const CAR = [
     { id: "paint", name: "Кузов", items: [
       { id: "blue", name: "Синий", at: 0 },
@@ -184,12 +186,54 @@
       { id: "blue", name: "Синяя", full: "синяя подсветка", at: 14 },
       { id: "red", name: "Красная", full: "красная подсветка", at: 30 },
       { id: "purple", name: "Фиолетовая", full: "фиолетовая подсветка", at: 50 },
+      { id: "green", name: "Зелёный неон", full: "зелёный неон", badge: "night" },
     ] },
     { id: "exhaust", name: "Выхлоп", items: [
       { id: "none", name: "Обычный", at: 0 },
       { id: "fire", name: "Пламя", full: "пламя из выхлопа", at: 50 },
     ] },
+    { id: "sign", name: "Знак на стекле", items: [
+      { id: "none", name: "Без знака", at: 0 },
+      { id: "u", name: "«У» — учусь", full: "знак «У»", badge: "ticket1" },
+      { id: "beginner", name: "«!» — начинающий", full: "знак «!»", badge: "ready" },
+    ] },
+    { id: "glass", name: "Стёкла", items: [
+      { id: "stock", name: "Обычные", at: 0 },
+      { id: "tint", name: "Тонировка", full: "тонировка", badge: "half" },
+    ] },
+    { id: "lights", name: "Фонари", items: [
+      { id: "stock", name: "Обычные", at: 0 },
+      { id: "led", name: "LED-полоса", full: "сквозной LED-фонарь", badge: "exam1" },
+    ] },
+    { id: "trim", name: "Хром", items: [
+      { id: "none", name: "Без хрома", at: 0 },
+      { id: "chrome", name: "Хром", full: "хромовая окантовка", badge: "clean1" },
+    ] },
+    { id: "rear", name: "Задний бампер", items: [
+      { id: "stock", name: "Обычный", at: 0 },
+      { id: "diffuser", name: "Диффузор", full: "диффузор и два выхлопа", badge: "exam3" },
+    ] },
+    { id: "decal", name: "Наклейки", items: [
+      { id: "none", name: "Без наклеек", at: 0 },
+      { id: "race", name: "Гоночные", full: "гоночные наклейки", badge: "exam_fast" },
+    ] },
+    { id: "roof", name: "Крыша", items: [
+      { id: "none", name: "Ничего", at: 0 },
+      { id: "fin", name: "Акулий плавник", full: "акулий плавник", badge: "clean10" },
+      { id: "taxi", name: "Шашечки", full: "шашечки такси", badge: "q1000" },
+    ] },
   ];
+
+  /** Открыт ли вариант. За огонёк — по лучшей серии. За значок — по got (Set id
+   * полученных значков); got не передан (машина друга, показ на сервере) —
+   * считаем открытым: выбор уже проверен validCar, когда его сохраняли. */
+  function isOpen(it, best, got) {
+    return it.badge ? !got || got.has(it.badge) : (best || 0) >= it.at;
+  }
+  /** Id полученных значков — для isOpen/carConfig/validCar. */
+  const gotBadges = f => new Set(badges(f).filter(b => b.got).map(b => b.id));
+  /** Что открывает значок — для подписи у значка. */
+  const unlocksByBadge = id => CAR.flatMap(c => c.items.filter(it => it.badge === id).map(it => it.full));
 
   /* Свой текст на номерном знаке, как в Forza: открывается с 3 дней, до 8
      символов — буквы (русские и латинские), цифры, пробел, дефис. Хранится
@@ -212,25 +256,27 @@
   /** Итоговая машина: выбранное, если открыто; иначе — по умолчанию.
    * По умолчанию кузов — синий, а детали — первая открытая (как было раньше:
    * взял рубеж — деталь появилась). Цвет сам не меняется никогда. */
-  function carConfig(saved, best) {
+  function carConfig(saved, best, got) {
     const cfg = {};
     for (const c of CAR) {
-      const open = c.items.filter(it => (best || 0) >= it.at);
-      const want = saved && open.find(it => it.id === saved[c.id]);
-      cfg[c.id] = want ? want.id : c.id === "paint" ? "blue" : (open[1] || open[0]).id;
+      const want = saved && c.items.find(it => it.id === saved[c.id] && isOpen(it, best, got));
+      // Сама надевается только деталь за огонёк; за значок — только если выбрали.
+      const auto = c.items.filter(it => !it.badge && (best || 0) >= it.at);
+      cfg[c.id] = want ? want.id : c.id === "paint" ? "blue" : (auto[1] || auto[0]).id;
     }
     cfg.plate = (best || 0) >= PLATE_AT && saved ? normalizePlate(saved.plate) || "" : "";
     return cfg;
   }
 
-  /** Проверка выбора с клиента: только известные категории и открытые варианты. */
-  function validCar(raw, best) {
+  /** Проверка выбора с клиента: только известные категории и открытые варианты.
+   * got — полученные значки (gotBadges); без него значковые не пройдут. */
+  function validCar(raw, best, got) {
     if (!raw || typeof raw !== "object") return null;
     const out = {};
     for (const c of CAR) {
       if (!(c.id in raw)) continue;
       const it = c.items.find(x => x.id === raw[c.id]);
-      if (!it || (best || 0) < it.at) return null;
+      if (!it || !isOpen(it, best, got || new Set())) return null;
       out[c.id] = it.id;
     }
     if ("plate" in raw) {
@@ -306,7 +352,7 @@
     };
   }
 
-  const M = { readiness, route, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
+  const M = { readiness, route, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, isOpen, gotBadges, unlocksByBadge, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

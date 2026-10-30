@@ -33,7 +33,10 @@ final class CarPainter {
     private static final Map<String, Integer> STRIPE = Map.of(
             "white", 0xEBF4F6F8, "black", 0xEB111418, "red", 0xEBE0241B, "gold", 0xEBF2CF4A);
     private static final Map<String, Integer> GLOW = Map.of(
-            "blue", 0xFF3AA0FF, "red", 0xFFFF3B30, "purple", 0xFFB43CFF);
+            "blue", 0xFF3AA0FF, "red", 0xFFFF3B30, "purple", 0xFFB43CFF, "green", 0xFF22E07A);
+    private static final int CHROME = 0xFFC9D1DA, YELLOW = 0xFFF5C400, INK = 0xFF111111;
+    private static final String GLASS = "M44 79 L52 59 Q53.4 57 56 57 L104 57 Q106.6 57 108 59 L116 79 Z";
+    private static final String GLINT = "M60 57 L74 57 L62 79 L48 79 Z";
 
     private CarPainter() {}
 
@@ -63,8 +66,34 @@ final class CarPainter {
         fill(c, p, 0xFF12161C, rect(15, 116, 22, 28, 5), rect(123, 116, 22, 28, 5));     // колёса
         fill(c, p, light, path("M50 52 Q52 47 59 47 L101 47 Q108 47 110 52 Z"));
         fill(c, p, body, path("M36 81 L46 56 Q48 52 54 52 L106 52 Q112 52 114 56 L124 81 Z"));
-        fill(c, p, 0xFF0B1118, path("M44 79 L52 59 Q53.4 57 56 57 L104 57 Q106.6 57 108 59 L116 79 Z"));
-        fill(c, p, 0x1AFFFFFF, path("M60 57 L74 57 L62 79 L48 79 Z"));
+        fill(c, p, 0xFF0B1118, path(GLASS));
+        fill(c, p, 0x1AFFFFFF, path(GLINT));
+        // Детали за значки (motivation.js CAR, index.html p-*): стекло и крыша.
+        if (is(car, "glass", "tint")) {
+            p.setShader(new android.graphics.LinearGradient(44, 57, 116, 79, new int[]{0xFF3B2A6B, 0xFF14304F, 0xFF0D5A5A},
+                    new float[]{0f, .55f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+            c.drawPath(path(GLASS), p);
+            p.setShader(null);
+            fill(c, p, 0x2EFFFFFF, path(GLINT));
+        }
+        if (is(car, "sign", "u")) {
+            Path tri = path("M100 61.5 L108.5 76.5 L91.5 76.5 Z");
+            fill(c, p, 0xFFFFFFFF, tri);
+            stroke(c, p, 0xFFE0241B, 1.8f, tri);
+            text(c, p, "У", 100, 75, 7.5f);
+        } else if (is(car, "sign", "beginner")) {
+            fill(c, p, YELLOW, rect(93, 64, 13, 13, 1));
+            text(c, p, "!", 99.5f, 75, 11);
+        }
+        if (is(car, "roof", "fin")) {
+            fill(c, p, dark, path("M74.5 47.5 Q75.5 35.5 80 35 Q84.5 35.5 85.5 47.5 Z"));
+            fill(c, p, (light & 0x00FFFFFF) | 0x8C000000, path("M77.5 46 Q78 38 80 37.5 L80 46 Z"));
+        } else if (is(car, "roof", "taxi")) {
+            fill(c, p, 0xFF2A2F37, rect(77, 45, 6, 3, 0));
+            fill(c, p, YELLOW, rect(63, 36, 34, 10, 2));
+            for (int i = 0; i < 5; i++) fill(c, p, INK, rect(63 + i * 6.8f, 42, 3.4f, 2, 0), rect(66.4f + i * 6.8f, 44, 3.4f, 2, 0));
+            text(c, p, "ТАКСИ", 80, 41.2f, 5);
+        }
         fill(c, p, dark, path("M31 77 L19 75 Q14.5 75 15 79.5 L16.5 83 L33 83 Z"), path("M129 77 L141 75 Q145.5 75 145 79.5 L143.5 83 L127 83 Z"));
         fill(c, p, light, path("M28 87 L132 87 L125 80 L35 80 Z"));
         fill(c, p, body, path("M12 100 Q12 88 26 87 L134 87 Q148 88 148 100 L150 126 Q150 134 142 134 L18 134 Q10 134 10 126 Z"));
@@ -105,7 +134,53 @@ final class CarPainter {
         if (car != null && "fire".equals(car.optString("exhaust"))) {
             fill(c, p, 0xB3FFCC00, path("M32 135 Q27 141 32 150 Q37 141 32 135 Z"), path("M128 135 Q123 141 128 150 Q133 141 128 135 Z"));
         }
+        // Детали за значки: багажник и бампер.
+        if (is(car, "lights", "led")) {
+            fill(c, p, 0x4DFF3B30, rect(38, 93, 84, 4, 2));
+            fill(c, p, 0xFFFF5147, rect(43, 94, 74, 2.2f, 1.1f));
+        }
+        if (is(car, "trim", "chrome")) {
+            fill(c, p, CHROME, rect(14, 107.1f, 132, 1.8f, 0), rect(36, 85.8f, 88, 1.4f, 0));
+            stroke(c, p, CHROME, 1.8f, rect(59, 104, 42, 15, 2.5f));
+        }
+        if (is(car, "rear", "diffuser")) {
+            fill(c, p, 0xFF0A0D11, path("M52 135 L108 135 L104 128 L56 128 Z"));
+            fill(c, p, 0xFF2C333C, rect(65.4f, 128.5f, 1.2f, 6.5f, 0), rect(74.4f, 128.5f, 1.2f, 6.5f, 0),
+                    rect(84.4f, 128.5f, 1.2f, 6.5f, 0), rect(93.4f, 128.5f, 1.2f, 6.5f, 0));
+            for (float x : new float[]{27, 36, 124, 133}) {
+                fill(c, p, 0xFF15191E, oval(x, 131, 3.6f, 2.6f));
+                stroke(c, p, CHROME, 1.3f, oval(x, 131, 3.6f, 2.6f));
+            }
+        }
+        if (is(car, "decal", "race")) {
+            fill(c, p, 0xFFFFFFFF, oval(126, 114, 7, 7), rect(22, 110, 20, 8, 0));
+            stroke(c, p, INK, 1f, oval(126, 114, 7, 7));
+            text(c, p, "7", 126, 117, 8.5f);
+            fill(c, p, INK, rect(22, 110, 4, 4, 0), rect(30, 110, 4, 4, 0), rect(38, 110, 4, 4, 0), rect(26, 114, 4, 4, 0), rect(34, 114, 4, 4, 0));
+        }
         return bmp;
+    }
+
+    private static boolean is(JSONObject car, String key, String value) {
+        return car != null && value.equals(car.optString(key));
+    }
+
+    private static void stroke(Canvas c, Paint p, int color, float width, Path shape) {
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(width);
+        p.setStrokeJoin(Paint.Join.ROUND);
+        p.setColor(color);
+        c.drawPath(shape, p);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /** Надпись на знаке/наклейке: жирная, по центру x, базовая линия y. */
+    private static void text(Canvas c, Paint p, String s, float x, float y, float size) {
+        p.setColor(INK);
+        p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setTextSize(size);
+        c.drawText(s, x, y, p);
     }
 
     private static void fill(Canvas c, Paint p, int color, Path... shapes) {
