@@ -526,12 +526,27 @@ const carSvg = prefix => $("car").querySelector("svg").outerHTML
 
 /** Текст на номере: до 5 символов — как есть, длиннее — ужимаем в ширину
  * поля номера (без флага), чтобы 8 символов влезали. */
+const PLATE_FIELD = 28;   // ширина поля номера без флага, в единицах SVG машины
+const PLATE_FONT = 6;     // как .plate-text в styles.css
+const isEmojiChar = ch => /p{Extended_Pictographic}|p{Regional_Indicator}/u.test(ch);
 function setPlateText(el, text) {
   const t = el.querySelector(".plate-text");
   if (!t) return;
   t.textContent = text || "";
-  if (text && text.length > 5) { t.setAttribute("textLength", "28"); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
-  else { t.removeAttribute("textLength"); t.removeAttribute("lengthAdjust"); }
+  t.removeAttribute("textLength"); t.removeAttribute("lengthAdjust"); t.removeAttribute("dy"); t.style.fontSize = "";
+  const chars = M.plateChars(text || "");
+  if (chars.some(isEmojiChar)) {
+    // С эмодзи — уменьшаем шрифт: сжатые по ширине эмодзи превращаются в полоски.
+    // Эмодзи раза в два с половиной шире буквы. Мельче — опускаем к середине номера.
+    const width = chars.reduce((w, ch) => w + (isEmojiChar(ch) ? 1.5 : 0.62), 0) * PLATE_FONT;
+    if (width > PLATE_FIELD) {
+      const size = PLATE_FONT * PLATE_FIELD / width;
+      t.style.fontSize = `${size.toFixed(2)}px`;
+      t.setAttribute("dy", (-(PLATE_FONT - size) * 0.4).toFixed(2));
+    }
+  } else if (chars.length > 5) {
+    t.setAttribute("textLength", String(PLATE_FIELD)); t.setAttribute("lengthAdjust", "spacingAndGlyphs");
+  }
 }
 
 /** Реакция машины на ответ: ok — газует, bad — тормозит и заносит,
@@ -1897,13 +1912,13 @@ async function renderGarage() {
     <h2 class="section-title">Номер</h2>
     <div class="g-plate">
       <label class="g-plate-field ${best < M.PLATE_AT ? "locked" : ""}">
-        <input id="gPlate" type="text" maxlength="${M.PLATE_MAX}" autocomplete="off" autocapitalize="characters" spellcheck="false"
+        <input id="gPlate" type="text" maxlength="${M.PLATE_MAX_UNITS}" autocomplete="off" autocapitalize="characters" spellcheck="false"
           placeholder="${best < M.PLATE_AT ? "" : "Ваш текст"}" aria-label="Текст на номере, до ${M.PLATE_MAX} символов" ${best < M.PLATE_AT ? "disabled" : ""}>
         <span class="g-plate-rus" aria-hidden="true">RUS</span>
       </label>
       <span class="g-plate-hint">${best < M.PLATE_AT
         ? `<span class="g-lock">${lockIcon}${M.PLATE_AT} ${daysWord(M.PLATE_AT)}</span> Свой номер откроется за ${M.PLATE_AT} ${daysWord(M.PLATE_AT)} огонька подряд`
-        : `До ${M.PLATE_MAX} символов: буквы, цифры, пробел, дефис. Пусто — чистый номер.`}</span>
+        : `До ${M.PLATE_MAX} символов: буквы, цифры, пробел, дефис и эмодзи. Пусто — чистый номер.`}</span>
     </div>
     ${M.CAR.map(c => `
       <h2 class="section-title">${esc(c.name)}</h2>
@@ -1956,7 +1971,7 @@ async function renderGarage() {
   plate.value = currentCar(st).plate;
   let plateTimer = 0;
   plate.addEventListener("input", () => {
-    const clean = plate.value.toUpperCase().replace(/[^A-ZА-ЯЁ0-9 -]/g, "").slice(0, M.PLATE_MAX);
+    const clean = M.cleanPlate(plate.value);
     if (clean !== plate.value) plate.value = clean;
     const text = M.normalizePlate(clean) ?? "";
     setPlateText($("gCar"), text);

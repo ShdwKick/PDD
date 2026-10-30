@@ -236,13 +236,29 @@
   const unlocksByBadge = id => CAR.flatMap(c => c.items.filter(it => it.badge === id).map(it => it.full));
 
   /* Свой текст на номерном знаке, как в Forza: открывается с 3 дней, до 8
-     символов — буквы (русские и латинские), цифры, пробел, дефис. Хранится
-     рядом с выбором машины (plate), пустая строка — чистый номер. */
+     символов — буквы (русские и латинские), цифры, пробел, дефис и эмодзи.
+     Символ — то, что видно как один знак: эмодзи из нескольких частей (👩‍🚀,
+     👍🏽, флаг) считается за один. Хранится рядом с выбором машины (plate),
+     пустая строка — чистый номер. */
   const PLATE_AT = 3, PLATE_MAX = 8;
+  const PLATE_MAX_UNITS = 64; // потолок длины строки: составные эмодзи длинные, но не бесконечные
+  // Части эмодзи: пиктограмма, цвет кожи, флаг (пара региональных букв),
+  // склейка ZWJ, вариант-селектор VS16, «кнопка» для цифр 1️⃣.
+  const PLATE_CHAR = /^(?:[A-ZА-ЯЁ0-9 -]|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|‍|️|⃣)$/u;
+  const SEGMENTER = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter("ru", { granularity: "grapheme" }) : null;
+  /** Строка по видимым символам (графемам). */
+  const plateChars = t => SEGMENTER ? Array.from(SEGMENTER.segment(t), x => x.segment) : Array.from(t);
+  const plateOk = ch => Array.from(ch).every(cp => PLATE_CHAR.test(cp));
+  /** Для поля ввода: заглавные, без недопустимого, не длиннее PLATE_MAX символов. */
+  function cleanPlate(raw) {
+    return plateChars(String(raw).toUpperCase()).filter(plateOk).slice(0, PLATE_MAX).join("");
+  }
   function normalizePlate(raw) {
     if (typeof raw !== "string") return null;
     const t = raw.toUpperCase().replace(/\s+/g, " ").trim();
-    return t.length <= PLATE_MAX && /^[A-ZА-ЯЁ0-9 -]*$/.test(t) ? t : null;
+    if (t.length > PLATE_MAX_UNITS) return null;
+    const chars = plateChars(t);
+    return chars.length <= PLATE_MAX && chars.every(plateOk) ? t : null;
   }
 
   /** Что открывает рубеж — для праздника и строки «следующий рубеж». */
@@ -352,7 +368,7 @@
     };
   }
 
-  const M = { readiness, route, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, isOpen, gotBadges, unlocksByBadge, PLATE_AT, PLATE_MAX, normalizePlate, week, weekStart, addDays, records };
+  const M = { readiness, route, badges, BADGES, milestone, MILESTONES, flameTier, CAR, carConfig, validCar, unlocksAt, isOpen, gotBadges, unlocksByBadge, PLATE_AT, PLATE_MAX, PLATE_MAX_UNITS, normalizePlate, cleanPlate, plateChars, week, weekStart, addDays, records };
   if (typeof module === "object" && module.exports) module.exports = M;
   else root.PddMotivation = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);

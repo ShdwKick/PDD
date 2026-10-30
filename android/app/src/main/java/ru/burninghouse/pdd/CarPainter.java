@@ -120,9 +120,12 @@ final class CarPainter {
             p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
             p.setTextAlign(Paint.Align.CENTER);
             p.setTextSize(6f);
-            // Длинный номер ужимаем в поле номера без флага — как setPlateText в app.js.
+            // Длинный номер ужимаем в поле номера без флага — как setPlateText в app.js:
+            // буквы — по ширине, с эмодзи — уменьшаем шрифт (сжатые эмодзи — полоски).
             float w = p.measureText(plate);
-            if (w > 28f) p.setTextScaleX(28f / w);
+            boolean emoji = plate.codePoints().anyMatch(cp -> cp > 0x2000 && !Character.isLetterOrDigit(cp) && cp != 0x2011);
+            if (w > 28f && emoji) p.setTextSize(6f * 28f / w);
+            else if (w > 28f) p.setTextScaleX(28f / w);
             c.drawText(plate, 76.5f, 114.4f, p);
             p.setTextScaleX(1f);
         }
