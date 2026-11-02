@@ -14,6 +14,7 @@ import {
   hasGuestStats, exportGuest, clearGuestStats, outbox, outboxPush, outboxDrop, plural,
   guestQState, recordGuestExam, guestFacts,
 } from "./progress.js";
+import { BODIES_REAR, BODIES_SIDE } from "./car-bodies.js";
 
 // Готовность, значки, рубежи, неделя — assets/motivation.js (обычный <script>:
 // тот же файл считает значки друзей на сервере).
@@ -21,6 +22,8 @@ const M = window.PddMotivation;
 
 const SERVICE_NAME = "Когда на права?";
 const $ = id => document.getElementById(id);
+// Остальные кузова — в ту же SVG, что и седан (index.html), до первой копии машины (carSvg).
+$("car").querySelector("svg").insertAdjacentHTML("beforeend", BODIES_REAR);
 const view = $("view");
 
 /* ---------- тема: рассвет и ночь (Design/palette.md) ---------- */
@@ -530,8 +533,10 @@ const PLATE_FIELD = 28;   // ширина поля номера без флаг�
 const PLATE_FONT = 6;     // как .plate-text в styles.css
 const isEmojiChar = ch => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(ch);
 function setPlateText(el, text) {
-  const t = el.querySelector(".plate-text");
-  if (!t) return;
+  // Номер есть у каждого кузова — пишем во все, виден номер выбранного.
+  for (const t of el.querySelectorAll(".plate-text")) fitPlate(t, text);
+}
+function fitPlate(t, text) {
   t.textContent = text || "";
   t.removeAttribute("textLength"); t.removeAttribute("lengthAdjust"); t.removeAttribute("dy"); t.style.fontSize = "";
   const chars = M.plateChars(text || "");
@@ -1374,6 +1379,7 @@ function sideCarSvg() {
   return `<svg viewBox="-4 0 146 62" aria-hidden="true">
     <defs><radialGradient id="sideGlow"><stop offset="0" style="stop-color:var(--glow,#3aa0ff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--glow,#3aa0ff)" stop-opacity="0"/></radialGradient>
       <linearGradient id="sideChrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f8fb"/><stop offset=".5" stop-color="#9aa6b2"/><stop offset="1" stop-color="#e3e8ee"/></linearGradient><linearGradient id="sideTint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b2a6b"/><stop offset=".55" stop-color="#14304f"/><stop offset="1" stop-color="#0d5a5a"/></linearGradient></defs>
+    <g class="b b-sedan">
     <ellipse class="part p-glow" cx="74" cy="54" rx="68" ry="7" fill="url(#sideGlow)"/>
     <ellipse class="car-shadow" cx="74" cy="54.6" rx="60" ry="2.6"/>
     <g class="part p-fire"><path class="exhaust" d="M11 42 Q4 40 -3 42.7 Q4 45.5 11 43.7 Z"/></g>
@@ -1402,7 +1408,7 @@ function sideCarSvg() {
     <g class="part p-race"><circle cx="84" cy="37" r="5.2" fill="#fff" stroke="#111" stroke-width=".7"/><text class="sign-text" x="84" y="39.3" font-size="6.4">7</text></g>
     <g class="part p-fin"><path fill="var(--car-dark)" d="M63.5 11.6 Q60 8.4 56 6.4 Q55 6.1 54.9 7.2 L54.6 11.6 Z"/></g>
     <g class="part p-taxi"><rect x="64" y="9.6" width="3" height="2.2" fill="#3a414b"/><rect x="62.2" y="3.8" width="6.6" height="6.2" rx="1" fill="#f5c400"/><rect x="62.2" y="8" width="6.6" height="1.1" fill="#111"/></g>
-  </svg>`;
+      </g>${BODIES_SIDE}</svg>`;
 }
 
 function roadCar(prefix, f, cls, style, svg = carSvg(prefix)) {

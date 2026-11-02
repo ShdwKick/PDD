@@ -107,7 +107,7 @@
     { id: "first", icon: "star", title: "Первый шаг", desc: "Ответить на первый вопрос", p: f => f.answers },
     { id: "ticket1", icon: "flag", title: "Первый билет", desc: "Решить билет целиком", p: f => f.tickets.done },
     { id: "clean1", icon: "check", title: "Без единой ошибки", desc: "Решить билет на 20 из 20", p: f => f.tickets.perfect },
-    { id: "q100", icon: "target", title: "Сотня", desc: "Ответить на 100 вопросов", p: f => f.answers / 100 },
+    { id: "q100", icon: "target", title: "Сотня", desc: "Дать 100 ответов — повторные тоже считаются", p: f => f.answers / 100 },
     { id: "streak3", icon: "flame", title: "Разогрев", desc: "Огонёк 3 дня подряд", p: f => f.streak.best / 3 },
     { id: "exam1", icon: "shield", title: "Сдал!", desc: "Сдать экзамен", p: f => f.exams.passed },
     { id: "combo20", icon: "bolt", title: "Двадцать в точку", desc: "20 верных ответов подряд", p: f => f.bestCombo / 20 },
@@ -123,7 +123,7 @@
     { id: "night", icon: "moon", title: "Ночной водитель", desc: "Заниматься после 23:00", p: f => f.night ? 1 : 0 },
     { id: "early", icon: "sun", title: "Ранняя пташка", desc: "Заниматься до 7 утра", p: f => f.early ? 1 : 0 },
     { id: "combo50", icon: "bolt", title: "Полсотни подряд", desc: "50 верных ответов подряд", p: f => f.bestCombo / 50 },
-    { id: "q1000", icon: "target", title: "Тысяча", desc: "Ответить на 1000 вопросов", p: f => f.answers / 1000 },
+    { id: "q1000", icon: "target", title: "Тысяча", desc: "Дать 1000 ответов — повторные тоже считаются", p: f => f.answers / 1000 },
     { id: "all40", icon: "flag", title: "Весь сборник", desc: "Сдать все 40 билетов", p: f => f.tickets.passedEver / 40 },
     { id: "streak30", icon: "flame", title: "Месяц без пропусков", desc: "Огонёк 30 дней подряд", p: f => f.streak.best / 30 },
     { id: "all", icon: "crown", title: "Знаю всё", desc: "Все вопросы — последний ответ верный", p: f => f.learned / f.total },
@@ -161,7 +161,14 @@
      «как с завода». Цвета — в styles.css (классы car-<категория>-<вариант>).
      Видно только то, что видно сзади и сбоку: других ракурсов у машины нет. */
   const CAR = [
-    { id: "paint", name: "Кузов", items: [
+    // Кузов: по мотивам реальных машин, упрощённо (tools/car-bodies.mjs).
+    { id: "body", name: "Кузов", items: [
+      { id: "sedan", name: "Седан", at: 0 },
+      { id: "hatch", name: "Хэтчбек", full: "кузов хэтчбек", at: 14 },
+      { id: "niva", name: "Внедорожник", full: "кузов внедорожник", badge: "all40" },
+      { id: "sport", name: "Спорткар", full: "кузов спорткар", at: 100 },
+    ] },
+    { id: "paint", name: "Цвет", items: [
       { id: "blue", name: "Синий", at: 0 },
       { id: "white", name: "Белый", full: "белый кузов", at: 3 },
       { id: "black", name: "Чёрный", full: "чёрный кузов", at: 7 },
@@ -224,6 +231,10 @@
     ] },
   ];
 
+  /** Что стоит, пока человек сам не выбрал: цвет и кузов сами не меняются,
+   * открылся новый — только предлагаем в гараже. */
+  const CAR_DEFAULT = { paint: "blue", body: "sedan" };
+
   /** Открыт ли вариант. За огонёк — по лучшей серии. За значок — по got (Set id
    * полученных значков); got не передан (машина друга, показ на сервере) —
    * считаем открытым: выбор уже проверен validCar, когда его сохраняли. */
@@ -278,7 +289,7 @@
       const want = saved && c.items.find(it => it.id === saved[c.id] && isOpen(it, best, got));
       // Сама надевается только деталь за огонёк; за значок — только если выбрали.
       const auto = c.items.filter(it => !it.badge && (best || 0) >= it.at);
-      cfg[c.id] = want ? want.id : c.id === "paint" ? "blue" : (auto[1] || auto[0]).id;
+      cfg[c.id] = want ? want.id : CAR_DEFAULT[c.id] || (auto[1] || auto[0]).id;
     }
     cfg.plate = (best || 0) >= PLATE_AT && saved ? normalizePlate(saved.plate) || "" : "";
     return cfg;

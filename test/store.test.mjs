@@ -266,7 +266,7 @@ const ago = k => addDays(today, -k);
   const s = fresh();
   withDays(s, "g", { [ago(3)]: 20, [ago(2)]: 20, [ago(1)]: 20 });
   const m = s.me("g", TZ);
-  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "" });
+  eq("по умолчанию: синий кузов, полосы уже открыты", M.carConfig(m.car, m.streak.best), { body: "sedan", paint: "blue", stripes: "white", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "" });
   eq("открытый белый кузов — можно", s.setCar("g", { paint: "white" }), { car: { paint: "white" } });
   eq("красный (30 дней) — ещё закрыт", s.setCar("g", { paint: "red" }), null);
   eq("мусор — нет", s.setCar("g", { paint: "pink" }), null);
@@ -280,7 +280,7 @@ const ago = k => addDays(today, -k);
   eq("больше 8 символов с эмодзи — нет", s.setCar("g", { plate: "🚗".repeat(9) }), null);
   s.setCar("g", { plate: "ане 77" }); // вернуть номер для проверки ниже
   eq("друзья видят машину такой, какой её выбрал хозяин", s.friendsFeed("v", ["g"]).g.car,
-    { paint: "white", stripes: "none", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "АНЕ 77" });
+    { body: "sedan", paint: "white", stripes: "none", spoiler: "none", glow: "none", exhaust: "none", sign: "none", glass: "stock", lights: "stock", trim: "none", rear: "stock", decal: "none", roof: "none", plate: "АНЕ 77" });
   const s2 = fresh();
   eq("номер до 3 дней огонька — закрыт", s2.setCar("n", { plate: "ANYA" }), null);
 
@@ -293,6 +293,9 @@ const ago = k => addDays(today, -k);
   eq("значковая деталь сама не надевается", M.carConfig(null, 100).roof, "none");
   eq("чужая машина: значковую деталь показываем, как выбрал хозяин", M.carConfig({ roof: "taxi" }, 0).roof, "taxi");
   eq("при выборе — только с полученным значком", [M.validCar({ roof: "taxi" }, 0, new Set(["q1000"])), M.validCar({ roof: "taxi" }, 0, new Set())], [{ roof: "taxi" }, null]);
+  eq("кузов сам не меняется, даже когда открыт новый", M.carConfig(null, 100).body, "sedan");
+  eq("хэтчбек — с 14 дней, внедорожник — за весь сборник", [M.validCar({ body: "hatch" }, 14), M.validCar({ body: "hatch" }, 13), M.validCar({ body: "niva" }, 100, new Set()), M.validCar({ body: "niva" }, 0, new Set(["all40"]))],
+    [{ body: "hatch" }, null, null, { body: "niva" }]);
   eq("свой показ: значка нет — выбранное не надевается", M.carConfig({ roof: "taxi" }, 0, new Set()).roof, "none");
 }
 

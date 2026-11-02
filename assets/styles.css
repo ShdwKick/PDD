@@ -866,6 +866,12 @@ a.lamp:hover{filter:brightness(1.1)}
 
 /* ---- машина из гаража (motivation.js CAR, applyCar в app.js) ---- */
 .car .part{display:none}
+/* Кузов (motivation.js CAR body): видна группа выбранного; без класса — седан. */
+.car .b{display:none}
+.car:not(.car-body-hatch):not(.car-body-niva):not(.car-body-sport) .b-sedan,
+.car.car-body-hatch .b-hatch,.car.car-body-niva .b-niva,.car.car-body-sport .b-sport{display:inline}
+/* Диффузор из гаража заменяет штатные выхлопы спорткара. */
+.car.car-rear-diffuser .stock-tips{display:none}
 .car.car-stripes-white .p-stripes,.car.car-stripes-black .p-stripes,.car.car-stripes-red .p-stripes,.car.car-stripes-gold .p-stripes,
 .car.car-spoiler-on .p-spoiler,
 .car.car-glow-blue .p-glow,.car.car-glow-red .p-glow,.car.car-glow-purple .p-glow,
