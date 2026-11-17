@@ -6,7 +6,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const createStore = require("../lib/store.js");
-const { addDays, dayIn } = createStore.internals;
+const { addDays, streakDay } = createStore.internals;
 const bank = JSON.parse(fs.readFileSync(new URL("../bank/ab.json", import.meta.url)));
 
 let fails = 0;
@@ -16,8 +16,10 @@ const eq = (name, got, want) => {
   console.log(`${ok ? "ок  " : "FAIL"} ${name}${ok ? "" : `: получили ${JSON.stringify(got)}, ждали ${JSON.stringify(want)}`}`);
 };
 const fresh = () => createStore({ dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "pdd-")), bank });
+// Со своими часами — для «последнего шанса»: нужен момент в первых минутах нового дня.
+const freshAt = clock => createStore({ dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "pdd-")), bank, clock });
 const TZ = "Europe/Moscow";
-const today = dayIn(TZ);
+const today = streakDay(TZ);   // учётный день: сутки кончаются в 00:15
 let rid = 0;
 const R = () => `rid-${(++rid).toString().padStart(8, "0")}`;
 const answerN = (s, user, n, { correct = true, at } = {}) => {
@@ -120,6 +122,71 @@ const ago = k => addDays(today, -k);
   answerN(s, "u", 20, { at: yesterdayNoon });
   const m = s.me("u", TZ);
   eq("офлайн-ответы вчера: вчера выполнено", [m.streak.current, m.streak.todayCount], [1, 0]);
+}
+
+/* «Последний шанс»: сутки огонька кончаются в 00:15, а не в полночь. «Сейчас»
+   задаём часами store; Europe/Moscow — без перехода на летнее время, поэтому
+   время в поясе берётся смещением +03:00. */
+{
+  const next = time => Date.parse(`${addDays(today, 1)}T${time}+03:00`);
+  const tomorrow = addDays(today, 1);
+
+  { // серия под угрозой: норма закрыта в 00:05 — огонёк не потух
+    let now = next("00:05:00");
+    const s = freshAt(() => now);
+    withDays(s, "u", { [ago(2)]: 20, [ago(1)]: 20 });   // серия 2 дня, сегодня пусто
+    const before = s.me("u", TZ).streak;
+    eq("в 00:05 сутки ещё прошлые", [before.today, before.current, before.todayDone, before.target], [today, 2, false, 20]);
+    const r = answerN(s, "u", 20, { at: now });
+    eq("успел до 00:15 — огонёк зажёгся", [r.lit, r.streak.current, r.streak.todayDone, r.streak.todayCount], [true, 3, true, 20]);
+    const more = answerN(s, "u", 1, { at: now });
+    eq("следующий ответ — в те же сутки", [more.streak.today, more.streak.todayCount], [today, 21]);
+    now = next("00:20:00");
+    const after = s.me("u", TZ).streak;
+    eq("после 00:15 — новые сутки, серия жива", [after.today, after.current, after.todayDone, after.todayCount], [tomorrow, 3, false, 0]);
+  }
+  { // проверка сброса сдвинута: в 00:20 прошедший день уже не закрыть
+    const now = next("00:20:00");
+    const s = freshAt(() => now);
+    withDays(s, "u", { [ago(2)]: 20, [ago(1)]: 20 });
+    const r = answerN(s, "u", 20, { at: now });
+    eq("опоздал на 5 минут — серия с нуля", [r.streak.today, r.streak.current, r.streak.todayDone], [tomorrow, 1, true]);
+  }
+  { // сдвиг — один на всех: ночной ответ идёт в прошедшие сутки и без серии
+    const now = next("00:05:00");
+    const s = freshAt(() => now);
+    const r = answerN(s, "u", 20, { at: now });
+    eq("спасать нечего — но день тот же", [r.streak.today, r.streak.todayCount, r.streak.current], [today, 20, 1]);
+  }
+  { // норма закрыта до полуночи — ответы в 00:05 просто идут поверх неё
+    const now = next("00:05:00");
+    const s = freshAt(() => now);
+    withDays(s, "u", { [ago(1)]: 20, [today]: 20 });
+    const r = answerN(s, "u", 1, { at: now });
+    eq("переполнение прошедших суток", [r.streak.today, r.streak.todayCount, r.streak.current], [today, 21, 2]);
+  }
+  { // пропущено два дня, заморозка одна: её съедает позавчерашний, вчерашний спасает шанс
+    const now = next("00:05:00");
+    const s = freshAt(() => now);
+    const days = {};
+    for (let k = 8; k >= 2; k--) days[ago(k)] = 20;   // 7 дней подряд → заморозка
+    withDays(s, "u", days);                           // вчера и сегодня пусто
+    const before = s.me("u", TZ).streak;
+    eq("вчерашний пропуск закрыт заморозкой, шанс на сегодня открыт", [before.today, before.current, before.freezes, before.todayDone], [today, 7, 0, false]);
+    const r = answerN(s, "u", 20, { at: now });
+    eq("шанс сработал поверх заморозки", [r.lit, r.streak.current, r.streak.todayDone], [true, 8, true]);
+  }
+  { // до 00:15 заморозка на пропущенный день ещё не тратится
+    let now = next("00:05:00");
+    const s = freshAt(() => now);
+    const days = {};
+    for (let k = 7; k >= 1; k--) days[ago(k)] = 20;    // 7 дней подряд → заморозка, сегодня пусто
+    withDays(s, "u", days);
+    eq("до 00:15 заморозка цела", [s.me("u", TZ).streak.current, s.me("u", TZ).streak.freezes], [7, 1]);
+    now = next("00:20:00");
+    const after = s.me("u", TZ).streak;
+    eq("после 00:15 заморозка спасла день", [after.current, after.freezes], [7, 0]);
+  }
 }
 
 { // вердикт экзамена

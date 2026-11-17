@@ -31,10 +31,15 @@ function write(d) {
   catch { /* приватный режим или квота — прогресс не переживёт визит, решать это не мешает */ }
 }
 
-/** 'YYYY-MM-DD' по местному времени. sv-SE — единственная распространённая
- * локаль, которая форматирует дату ровно так. */
+const DAY_ENDS_AT = 15 * 60 * 1000; // сутки огонька кончаются в 00:15, а не в полночь («последний шанс»)
+
+/** Учётный день, 'YYYY-MM-DD' по местному времени (sv-SE — единственная
+ * распространённая локаль, которая форматирует дату ровно так). Сутки
+ * кончаются не в полночь, а в 00:15: первые 15 минут нового дня ещё идут в
+ * прошедший — скрытый «последний шанс», успел закрыть норму до 00:15, и
+ * огонёк не потух. То же правило на сервере (streakDay в lib/store.js). */
 export function today() {
-  return new Date().toLocaleDateString("sv-SE");
+  return new Date(Date.now() - DAY_ENDS_AT).toLocaleDateString("sv-SE");
 }
 function shiftDay(key, delta) {
   const [y, m, dd] = key.split("-").map(Number);
@@ -44,6 +49,7 @@ function diffDays(from, to) {
   const t = k => { const [y, m, d] = k.split("-").map(Number); return Date.UTC(y, m - 1, d); };
   return Math.round((t(to) - t(from)) / 86400000);
 }
+
 
 /* ---------- незаконченные билеты — и у гостя, и у вошедшего ---------- */
 
@@ -194,7 +200,7 @@ export function recordGuestExam(result) {
 }
 
 /** Огонёк гостя — в той же форме, что streak с сервера (без заморозок). Сегодня
- * ещё не выполнено — серия не сгорела, считаем со вчера: до полуночи время есть. */
+ * ещё не выполнено — серия не сгорела, считаем со вчера: до 00:15 время есть. */
 export function guestStreak(total) {
   const d = read();
   const target = targetFor(d.plan, Object.values(d.q).filter(s => s.last === 1).length, total);
