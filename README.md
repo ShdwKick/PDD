@@ -10,6 +10,7 @@ node dev.mjs            # auth (8792) + сервис (8798), аккаунты de
 node dev.mjs --reset    # то же с чистыми данными
 node server.js          # только сервис — вход будет смотреть на auth.burninghouse.ru
 node test/store.test.mjs          # логика огонька, заморозок, планов, друзей
+node test/motivation.test.mjs     # дорога к правам: порядок отметок
 node test/webpush.test.mjs        # шифрование push (сверка с эталоном RFC 8291)
 node test/webpush-send.test.mjs   # отправка push на фальшивый push-сервис
 ```

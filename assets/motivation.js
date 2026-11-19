@@ -84,19 +84,28 @@
     return `${Math.min(f.learned, need)} из ${need} ${plural(need, "вопроса", "вопросов", "вопросов")}`;
   }
 
-  /** points — все отметки по порядку; reached — сколько подряд пройдено с
-   * начала; next — первая не пройденная (или null); pct — средний прогресс. */
+  /** points — отметки в порядке для показа; reached — сколько пройдено;
+   * next — первая не пройденная (или null); pct — средний прогресс.
+   *
+   * Условия у отметок независимые, поэтому «Первый экзамен» бывает взят
+   * раньше «Четверти пути». На дороге машина стоит между пройденными и
+   * следующей — и тогда за ней оказывались открытые отметки, а счётчик
+   * считал только те, что идут подряд с начала. Поэтому пройденные
+   * поднимаются вперёд: позади машины — только открытое, впереди — только
+   * закрытое. Внутри каждой группы порядок свой, из ROUTE, — так дорога
+   * остаётся той же и не перетасовывается на ровном месте. */
   function route(f) {
     const points = ROUTE.map(r => {
       const progress = clamp01(r.p(f));
       const done = progress >= 1;
       return { id: r.id, title: r.title, done, progress, detail: done ? "" : r.left(f) };
     });
-    const idx = points.findIndex(p => !p.done);
+    const ordered = [...points.filter(p => p.done), ...points.filter(p => !p.done)];
+    const reached = points.filter(p => p.done).length;
     return {
-      points,
-      reached: idx < 0 ? points.length : idx,
-      next: idx < 0 ? null : points[idx],
+      points: ordered,
+      reached,
+      next: ordered[reached] || null,
       pct: Math.round(100 * points.reduce((a, p) => a + p.progress, 0) / points.length),
     };
   }
